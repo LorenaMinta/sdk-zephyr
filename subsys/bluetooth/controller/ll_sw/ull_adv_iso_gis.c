@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#if 0
+
 #include <soc.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
@@ -1733,3 +1735,5 @@ static void tx_lll_flush(void *param)
 	/* Enqueue the terminate towards ULL context */
 	ull_rx_put_sched(link, rx);
 }
+
+#endif

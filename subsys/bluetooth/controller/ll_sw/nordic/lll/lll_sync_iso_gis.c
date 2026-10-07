@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#if 0
+
 #include <stdint.h>
 #include <string.h>
 
@@ -1865,3 +1867,5 @@ static void isr_rx_ctrl_recv(struct lll_sync_iso *lll, struct pdu_bis *pdu)
 		/* Unknown control PDU, ignore */
 	}
 }
+
+#endif

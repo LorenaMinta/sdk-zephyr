@@ -40,6 +40,7 @@
 #include "lll_conn_iso.h"
 #include "lll_sync.h"
 #include "lll_sync_iso.h"
+#include "lll_sync_iso_gis.h"
 
 #include "isoal.h"
 

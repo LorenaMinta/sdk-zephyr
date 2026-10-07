@@ -26,6 +26,7 @@
 #include "lll_scan.h"
 #include "lll_sync.h"
 #include "lll_sync_iso.h"
+#include "lll_sync_iso_gis.h"
 #include "lll_conn.h"
 #include "lll_conn_iso.h"
 

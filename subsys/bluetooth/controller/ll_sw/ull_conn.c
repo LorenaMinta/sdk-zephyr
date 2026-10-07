@@ -63,6 +63,7 @@
 #include "ull_adv_internal.h"
 #include "lll_sync.h"
 #include "lll_sync_iso.h"
+#include "lll_sync_iso_gis.h"
 #include "ull_sync_types.h"
 #include "lll_scan.h"
 #include "ull_scan_types.h"

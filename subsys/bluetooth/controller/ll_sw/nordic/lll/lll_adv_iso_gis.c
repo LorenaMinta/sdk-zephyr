@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#if 0
+
 #include <stdint.h>
 #include <string.h>
 
@@ -1090,3 +1092,5 @@ static void isr_done_term(void *param)
 
 	lll_isr_cleanup(param);
 }
+
+#endif

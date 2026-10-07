@@ -34,6 +34,7 @@
 #include "lll_adv_pdu.h"
 #include "lll_adv_sync.h"
 #include "lll_adv_iso.h"
+#include "lll_adv_iso_gis.h"
 #include "lll_df_types.h"
 
 #include "lll_internal.h"
