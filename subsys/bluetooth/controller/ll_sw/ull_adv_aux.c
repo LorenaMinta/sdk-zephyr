@@ -1351,7 +1351,7 @@ uint8_t ll_adv_aux_set_remove(uint8_t handle)
 	if (lll->sync) {
 		struct ll_adv_sync_set *sync;
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 		if (lll->sync->iso) {
 			return BT_HCI_ERR_CMD_DISALLOWED;
 		}

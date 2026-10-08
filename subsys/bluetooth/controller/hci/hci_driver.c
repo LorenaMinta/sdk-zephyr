@@ -330,7 +330,7 @@ static void prio_recv_thread(void *p1, void *p2, void *p3)
 		uint8_t num_cmplt;
 		uint16_t handle;
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 		node_rx = ll_iso_rx_get();
 		if (node_rx) {
 			ll_iso_rx_dequeue();
@@ -355,7 +355,7 @@ static void prio_recv_thread(void *p1, void *p2, void *p3)
 
 		/* While there are completed rx nodes */
 		while ((num_cmplt = ll_rx_get((void *)&node_rx, &handle))) {
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 			int err;
 
 			buf = bt_buf_get_evt(BT_HCI_EVT_NUM_COMPLETED_PACKETS,
@@ -433,7 +433,7 @@ static void prio_recv_thread(void *p1, void *p2, void *p3)
 #else /* !CONFIG_BT_CTLR_RX_PRIO_STACK_SIZE */
 static void node_rx_recv(const struct device *dev)
 {
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	const struct hci_driver_data *data = dev->data;
 #endif /* CONFIG_BT_CONN || CONFIG_BT_CTLR_ADV_ISO */
 
@@ -444,7 +444,7 @@ static void node_rx_recv(const struct device *dev)
 		uint8_t num_cmplt;
 		uint16_t handle;
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 		node_rx = ll_iso_rx_get();
 		if (node_rx != NULL) {
 			ll_iso_rx_dequeue();
@@ -467,7 +467,7 @@ static void node_rx_recv(const struct device *dev)
 		/* While there are completed rx nodes */
 		num_cmplt = ll_rx_get((void *)&node_rx, &handle);
 		while (num_cmplt != 0U) {
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 			struct net_buf *buf;
 
 			LL_ASSERT(node_rx == NULL);
@@ -561,7 +561,7 @@ static inline struct net_buf *encode_node(struct node_rx_pdu *node_rx,
 		break;
 #endif /* CONFIG_BT_CONN */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	case HCI_CLASS_ISO_DATA: {
 		if (false) {
 
@@ -593,7 +593,7 @@ static inline struct net_buf *encode_node(struct node_rx_pdu *node_rx,
 			}
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 		} else if (IS_SYNC_ISO_HANDLE(node_rx->hdr.handle)) {
 			const struct lll_sync_iso_stream *stream;
 			struct isoal_pdu_rx isoal_rx;
@@ -933,7 +933,7 @@ static int acl_handle(const struct device *dev, struct net_buf *buf)
 }
 #endif /* CONFIG_BT_CONN */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 static int iso_handle(const struct device *dev, struct net_buf *buf)
 {
 	struct net_buf *evt;
@@ -976,7 +976,7 @@ static int hci_driver_send(const struct device *dev, struct net_buf *buf)
 	case BT_HCI_H4_CMD:
 		err = cmd_handle(dev, buf);
 		break;
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	case BT_HCI_H4_ISO:
 		err = iso_handle(dev, buf);
 		break;

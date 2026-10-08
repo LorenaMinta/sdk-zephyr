@@ -901,7 +901,7 @@ static void read_supported_commands(struct net_buf *buf, struct net_buf **evt)
 #if defined(CONFIG_BT_CTLR_ADV_PERIODIC)
 	/* LE Set PA Params, LE Set PA Data, LE Set PA Enable */
 	rp->commands[37] |= BIT(2) | BIT(3) | BIT(4);
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	/* LE Create BIG, LE Create BIG Test, LE Terminate BIG */
 	rp->commands[42] |= BIT(5) | BIT(6) | BIT(7);
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
@@ -931,7 +931,7 @@ static void read_supported_commands(struct net_buf *buf, struct net_buf **evt)
 	/* LE Set PA Receive Enable */
 	rp->commands[40] |= BIT(5);
 #endif /* CONFIG_BT_CTLR_SYNC_PERIODIC */
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	/* LE BIG Create Sync, LE BIG Terminate Sync */
 	rp->commands[43] |= BIT(0) | BIT(1);
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
@@ -1091,14 +1091,14 @@ static void read_supported_commands(struct net_buf *buf, struct net_buf **evt)
 	/* LE Read TX Power. */
 	rp->commands[38] |= BIT(7);
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	/* LE Read Buffer Size v2, LE Read ISO TX Sync */
 	rp->commands[41] |= BIT(5) | BIT(6);
 	/* LE ISO Transmit Test */
 	rp->commands[43] |= BIT(5);
 #endif /* CONFIG_BT_CTLR_ADV_ISO || CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	/* LE ISO Receive Test, LE ISO Read Test Counters */
 	rp->commands[43] |= BIT(6) | BIT(7);
 
@@ -1436,7 +1436,7 @@ static void le_read_buffer_size(struct net_buf *buf, struct net_buf **evt)
 	rp->le_max_num = CONFIG_BT_BUF_ACL_TX_COUNT;
 }
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 static void le_read_buffer_size_v2(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_rp_le_read_buffer_size_v2 *rp;
@@ -1712,7 +1712,7 @@ static void le_set_adv_enable(struct net_buf *buf, struct net_buf **evt)
 	*evt = cmd_complete_status(status);
 }
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 static void le_create_big(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_cp_le_create_big *cmd = (void *)buf->data;
@@ -1863,7 +1863,7 @@ static void le_set_scan_enable(struct net_buf *buf, struct net_buf **evt)
 	*evt = cmd_complete_status(status);
 }
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 static void le_big_create_sync(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_cp_le_big_create_sync *cmd = (void *)buf->data;
@@ -2251,7 +2251,7 @@ static void le_remove_cig(struct net_buf *buf, struct net_buf **evt)
 
 #endif /* CONFIG_BT_CENTRAL */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 static void le_iso_transmit_test(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_cp_le_iso_transmit_test *cmd = (void *)buf->data;
@@ -2293,7 +2293,7 @@ static void le_read_iso_tx_sync(struct net_buf *buf, struct net_buf **evt)
 }
 #endif /* CONFIG_BT_CTLR_ADV_ISO || CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 static void le_iso_receive_test(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_cp_le_iso_receive_test *cmd = (void *)buf->data;
@@ -4506,7 +4506,7 @@ static int controller_cmd_handle(uint16_t  ocf, struct net_buf *cmd,
 		le_read_buffer_size(cmd, evt);
 		break;
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	case BT_OCF(BT_HCI_OP_LE_READ_BUFFER_SIZE_V2):
 		le_read_buffer_size_v2(cmd, evt);
 		break;
@@ -4573,7 +4573,7 @@ static int controller_cmd_handle(uint16_t  ocf, struct net_buf *cmd,
 		le_set_adv_enable(cmd, evt);
 		break;
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	case BT_OCF(BT_HCI_OP_LE_CREATE_BIG):
 		le_create_big(cmd, evt);
 		break;
@@ -4597,7 +4597,7 @@ static int controller_cmd_handle(uint16_t  ocf, struct net_buf *cmd,
 		le_set_scan_enable(cmd, evt);
 		break;
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	case BT_OCF(BT_HCI_OP_LE_BIG_CREATE_SYNC):
 		le_big_create_sync(cmd, evt);
 		break;
@@ -4682,7 +4682,7 @@ static int controller_cmd_handle(uint16_t  ocf, struct net_buf *cmd,
 		break;
 #endif /* CONFIG_BT_CTLR_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	case BT_OCF(BT_HCI_OP_LE_ISO_TRANSMIT_TEST):
 		le_iso_transmit_test(cmd, evt);
 		break;
@@ -4691,7 +4691,7 @@ static int controller_cmd_handle(uint16_t  ocf, struct net_buf *cmd,
 		break;
 #endif /* CONFIG_BT_CTLR_ADV_ISO || CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	case BT_OCF(BT_HCI_OP_LE_ISO_RECEIVE_TEST):
 		le_iso_receive_test(cmd, evt);
 		break;
@@ -5801,7 +5801,7 @@ struct net_buf *hci_cmd_handle(struct net_buf *cmd, void **node_rx)
 }
 
 #if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || \
-	defined(CONFIG_BT_CTLR_CONN_ISO)
+	defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 static void data_buf_overflow(struct net_buf **buf, uint8_t link_type)
 {
 	struct bt_hci_evt_data_buf_overflow *ep;
@@ -5895,7 +5895,7 @@ int hci_acl_handle(struct net_buf *buf, struct net_buf **evt)
 }
 #endif /* CONFIG_BT_CONN */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_iso_sdu_hdr *iso_sdu_hdr;
@@ -6116,7 +6116,7 @@ int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 		return 0;
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	} else if (IS_ADV_ISO_HANDLE(handle)) {
 		struct lll_adv_iso_stream *stream;
 		struct ll_adv_iso_set *adv_iso;
@@ -8055,7 +8055,7 @@ static void le_per_adv_sync_lost(struct pdu_data *pdu_data,
 	sep->handle = sys_cpu_to_le16(node_rx->hdr.handle);
 }
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 static void le_big_sync_established(struct pdu_data *pdu,
 				    struct node_rx_pdu *node_rx,
 				    struct net_buf *buf)
@@ -8182,7 +8182,7 @@ static void le_adv_ext_terminate(struct pdu_data *pdu_data,
 		node_rx->rx_ftr.param_adv_term.num_events;
 }
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 static void le_big_complete(struct pdu_data *pdu_data,
 			    struct node_rx_pdu *node_rx,
 			    struct net_buf *buf)
@@ -8726,7 +8726,7 @@ static void encode_control(struct node_rx_pdu *node_rx,
 		break;
 #endif /* CONFIG_BT_CTLR_DF_SCAN_CTE_RX */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	case NODE_RX_TYPE_SYNC_ISO:
 		le_big_sync_established(pdu_data, node_rx, buf);
 		break;
@@ -8745,7 +8745,7 @@ static void encode_control(struct node_rx_pdu *node_rx,
 		le_adv_ext_terminate(pdu_data, node_rx, buf);
 		break;
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	case NODE_RX_TYPE_BIG_COMPLETE:
 		le_big_complete(pdu_data, node_rx, buf);
 		break;
@@ -9186,7 +9186,7 @@ void hci_evt_encode(struct node_rx_pdu *node_rx, struct net_buf *buf)
 }
 
 #if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || \
-	defined(CONFIG_BT_CTLR_CONN_ISO)
+	defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 void hci_num_cmplt_encode(struct net_buf *buf, uint16_t handle, uint8_t num)
 {
 	struct bt_hci_evt_num_completed_packets *ep;
@@ -9252,7 +9252,7 @@ uint8_t hci_get_class(struct node_rx_pdu *node_rx)
 #if defined(CONFIG_BT_BROADCASTER)
 		case NODE_RX_TYPE_EXT_ADV_TERMINATE:
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 		case NODE_RX_TYPE_BIG_COMPLETE:
 		case NODE_RX_TYPE_BIG_TERMINATE:
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
@@ -9277,7 +9277,7 @@ uint8_t hci_get_class(struct node_rx_pdu *node_rx)
 		case NODE_RX_TYPE_SYNC_IQ_SAMPLE_REPORT:
 #endif /* CONFIG_BT_CTLR_DF_SCAN_CTE_RX */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 		case NODE_RX_TYPE_SYNC_ISO:
 		case NODE_RX_TYPE_SYNC_ISO_LOST:
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
@@ -9334,7 +9334,7 @@ uint8_t hci_get_class(struct node_rx_pdu *node_rx)
 			return HCI_CLASS_EVT_CONNECTION;
 #endif /* CONFIG_BT_CONN */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 		case NODE_RX_TYPE_ISO_PDU:
 			return HCI_CLASS_ISO_DATA;
 #endif /* CONFIG_BT_CTLR_SYNC_ISO || CONFIG_BT_CTLR_CONN_ISO */

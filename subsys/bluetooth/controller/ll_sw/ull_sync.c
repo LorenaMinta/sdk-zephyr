@@ -1037,7 +1037,7 @@ void ull_sync_setup(struct ll_scan_set *scan, uint8_t phy,
 	       PDU_SYNC_INFO_SCA_CHM_SCA_BIT_MASK) >>
 	      PDU_SYNC_INFO_SCA_CHM_SCA_BIT_POS;
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	lll->sca = sca;
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
 
@@ -1625,7 +1625,7 @@ static struct ll_sync_set *ull_sync_create(uint8_t sid, uint16_t timeout, uint16
 	sync->skip = skip;
 	sync->is_stop = 0U;
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	sync->enc = 0U;
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
 
@@ -1641,7 +1641,7 @@ static struct ll_sync_set *ull_sync_create(uint8_t sid, uint16_t timeout, uint16
 	/* Remember the SID */
 	sync->sid = sid;
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	/* Reset Broadcast Isochronous Group Sync Establishment */
 	sync->iso.sync_iso = NULL;
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
@@ -1824,7 +1824,7 @@ static void sync_lost(void *param)
 	/* Enqueue the sync lost towards ULL context */
 	ll_rx_put_sched(rx->hdr.link, rx);
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	if (sync->iso.sync_iso) {
 		/* ISO create BIG flag in the periodic advertising context is still set */
 		struct ll_sync_iso_set *sync_iso;

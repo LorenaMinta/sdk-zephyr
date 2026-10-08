@@ -221,7 +221,7 @@ again:
 	return 0;
 }
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 int util_saa_le32(uint8_t *dst, uint8_t handle)
 {
 	/* Refer to Bluetooth Core Specification Version 5.2 Vol 6, Part B,
@@ -277,7 +277,7 @@ int util_saa_le32(uint8_t *dst, uint8_t handle)
 }
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 void util_bis_aa_le32(uint8_t bis, uint8_t *saa, uint8_t *dst)
 {
 	/* Refer to Bluetooth Core Specification Version 5.2 Vol 6, Part B,

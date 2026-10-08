@@ -91,7 +91,7 @@ LOG_MODULE_REGISTER(bt_ctlr_ull_iso);
 
 static int init_reset(void);
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 static isoal_status_t ll_iso_pdu_alloc(struct isoal_pdu_buffer *pdu_buffer);
 static isoal_status_t ll_iso_pdu_write(struct isoal_pdu_buffer *pdu_buffer,
 				       const size_t   offset,
@@ -114,7 +114,7 @@ static struct ll_iso_datapath datapath_pool[BT_CTLR_ISO_STREAMS];
 
 static void *datapath_free;
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 static void ticker_resume_op_cb(uint32_t status, void *param);
 static void ticker_resume_cb(uint32_t ticks_at_expire, uint32_t ticks_drift,
 			     uint32_t remainder, uint16_t lazy, uint8_t force,
@@ -145,7 +145,7 @@ static void iso_rx_demux(void *param);
 
 #define ISO_TEST_PACKET_COUNTER_SIZE 4U
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 void ll_iso_link_tx_release(void *link);
 void ll_iso_tx_mem_release(void *node_tx);
 
@@ -309,7 +309,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 				sdu_interval = cig->c_sdu_interval;
 			}
 		}
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	} else if (IS_ADV_ISO_HANDLE(handle)) {
 		struct ll_adv_iso_set *adv_iso;
 		struct lll_adv_iso *lll_iso;
@@ -338,7 +338,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 		max_octets = lll_iso->max_pdu;
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	} else if (IS_SYNC_ISO_HANDLE(handle)) {
 		struct ll_sync_iso_set *sync_iso;
 		struct lll_sync_iso *lll_iso;
@@ -403,7 +403,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 
 	if (false) {
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	} else if ((path_dir == BT_HCI_DATAPATH_DIR_CTLR_TO_HOST) &&
 		   (cis || sync_stream)) {
 		isoal_sink_handle_t sink_handle;
@@ -469,7 +469,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 		ARG_UNUSED(sync_stream);
 #endif /* !CONFIG_BT_CTLR_SYNC_ISO && !CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	} else if ((path_dir == BT_HCI_DATAPATH_DIR_HOST_TO_CTLR) &&
 		   (cis || adv_stream)) {
 		isoal_source_handle_t source_handle;
@@ -513,7 +513,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 				cis->hdr.datapath_in = dp;
 			}
 
-			if (IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) && adv_stream != NULL) {
+			if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) || IS_ENABLED(CONFIG_BT_CTLR_GIS_ISO)) && adv_stream != NULL) {
 				adv_stream->dp = dp;
 			}
 
@@ -580,7 +580,7 @@ uint8_t ll_remove_iso_path(uint16_t handle, uint8_t path_dir)
 		}
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	} else if (IS_ADV_ISO_HANDLE(handle)) {
 		struct lll_adv_iso_stream *adv_stream;
 		struct ll_iso_datapath *dp;
@@ -607,7 +607,7 @@ uint8_t ll_remove_iso_path(uint16_t handle, uint8_t path_dir)
 		}
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	} else if (IS_SYNC_ISO_HANDLE(handle)) {
 		struct lll_sync_iso_stream *sync_stream;
 		struct ll_iso_datapath *dp;
@@ -641,7 +641,7 @@ uint8_t ll_remove_iso_path(uint16_t handle, uint8_t path_dir)
 	return 0;
 }
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 /* The sdu_alloc function is called before combining PDUs into an SDU. Here we
  * store the paylaod number associated with the first PDU, for unframed usecase.
  */
@@ -709,7 +709,7 @@ static isoal_status_t ll_iso_test_sdu_emit(const struct isoal_sink             *
 
 		test_mode_rx = &cis->hdr.test_mode.rx;
 		max_sdu = cis->c_max_sdu;
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	} else if (IS_SYNC_ISO_HANDLE(handle)) {
 		struct lll_sync_iso_stream *sync_stream;
 		struct ll_sync_iso_set *sync_iso;
@@ -824,7 +824,7 @@ uint8_t ll_iso_receive_test(uint16_t handle, uint8_t payload_type)
 
 	uint32_t stream_sync_delay;
 	uint32_t group_sync_delay;
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	uint16_t stream_handle;
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
 	uint16_t iso_interval;
@@ -867,7 +867,7 @@ uint8_t ll_iso_receive_test(uint16_t handle, uint8_t payload_type)
 		iso_interval = cig->iso_interval;
 		stream_sync_delay = cis->sync_delay;
 		group_sync_delay = cig->sync_delay;
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	} else if (IS_SYNC_ISO_HANDLE(handle)) {
 		/* Get the sync stream from the handle */
 		struct lll_sync_iso_stream *sync_stream;
@@ -1067,7 +1067,7 @@ uint8_t ll_read_iso_link_quality(uint16_t  handle,
 
 #endif /* CONFIG_BT_CTLR_SYNC_ISO || CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 static isoal_status_t ll_iso_test_pdu_release(struct node_tx_iso *node_tx,
 					      const uint16_t handle,
 					      const isoal_status_t status)
@@ -1400,7 +1400,7 @@ uint8_t ll_iso_test_end(uint16_t handle, uint32_t *received_cnt,
 	return BT_HCI_ERR_SUCCESS;
 }
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 void *ll_iso_tx_mem_acquire(void)
 {
 	return mem_acquire(&mem_iso_tx.free);
@@ -1420,7 +1420,7 @@ int ll_iso_tx_mem_enqueue(uint16_t handle, void *node_tx, void *link)
 		cis = ll_conn_iso_stream_get(handle);
 		memq_enqueue(link, node_tx, &cis->lll.memq_tx.tail);
 
-	} else if (IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) &&
+	} else if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) || IS_ENABLED(CONFIG_BT_CTLR_GIS_ISO)) &&
 		   IS_ADV_ISO_HANDLE(handle)) {
 		struct lll_adv_iso_stream *stream;
 		uint16_t stream_handle;
@@ -1461,7 +1461,7 @@ int ull_iso_reset(void)
 	return 0;
 }
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 void ull_iso_lll_ack_enqueue(uint16_t handle, struct node_tx_iso *node_tx)
 {
 	if (IS_ENABLED(CONFIG_BT_CTLR_CONN_ISO) && IS_CIS_HANDLE(handle)) {
@@ -1488,7 +1488,7 @@ void ull_iso_lll_ack_enqueue(uint16_t handle, struct node_tx_iso *node_tx)
 			ll_rx_sched();
 #endif /* CONFIG_BT_CTLR_ISO_VENDOR_DATA_PATH */
 		}
-	} else if (IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) && IS_ADV_ISO_HANDLE(handle)) {
+	} else if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) || IS_ENABLED(CONFIG_BT_CTLR_GIS_ISO)) && IS_ADV_ISO_HANDLE(handle)) {
 		/* Process as TX ack. TODO: Can be unified with CIS and use
 		 * ISOAL.
 		 */
@@ -1539,7 +1539,7 @@ void ull_iso_lll_event_prepare(uint16_t handle, uint64_t event_count)
 }
 #endif /* CONFIG_BT_CTLR_ADV_ISO || CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 uint32_t ull_iso_big_sync_delay(uint8_t num_bis, uint32_t bis_spacing, uint8_t nse,
 				uint32_t sub_interval, uint8_t phy, uint8_t max_pdu, bool enc)
 {
@@ -1551,7 +1551,7 @@ uint32_t ull_iso_big_sync_delay(uint8_t num_bis, uint32_t bis_spacing, uint8_t n
 }
 #endif /* CONFIG_BT_CTLR_ADV_ISO || CONFIG_BT_CTLR_SYNC_ISO */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 void *ull_iso_pdu_rx_alloc_peek(uint8_t count)
 {
 	if (count > MFIFO_AVAIL_COUNT_GET(iso_rx)) {
@@ -1619,7 +1619,7 @@ static void iso_rx_cig_ref_point_update(struct ll_conn_iso_group *cig,
 static void iso_rx_demux(void *param)
 {
 #if defined(CONFIG_BT_CTLR_CONN_ISO) || \
-	defined(CONFIG_BT_CTLR_SYNC_ISO)
+	defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	struct ll_iso_datapath *dp;
 #endif  /* CONFIG_BT_CTLR_CONN_ISO || CONFIG_BT_CTLR_SYNC_ISO */
 	struct node_rx_pdu *rx_pdu;
@@ -1662,7 +1662,7 @@ static void iso_rx_demux(void *param)
 					iso_rx_cig_ref_point_update(cig, cis,
 								    &rx_pdu->hdr.rx_iso_meta);
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 				} else if (IS_SYNC_ISO_HANDLE(handle)) {
 					struct lll_sync_iso_stream *sync_stream;
 					uint16_t stream_handle;
@@ -1673,7 +1673,7 @@ static void iso_rx_demux(void *param)
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
 				}
 
-#if defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 				if (dp && dp->path_id != BT_HCI_DATAPATH_ID_HCI) {
 					/* If vendor specific datapath pass to ISO AL here,
 					 * in case of HCI destination it will be passed in
@@ -1798,7 +1798,7 @@ void ull_iso_datapath_release(struct ll_iso_datapath *dp)
 	mem_release(dp, &datapath_free);
 }
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 void ll_iso_link_tx_release(void *link)
 {
 	mem_release(link, &mem_link_iso_tx.free);
@@ -1892,7 +1892,7 @@ static isoal_status_t ll_iso_pdu_emit(struct node_tx_iso *node_tx,
 	return ISOAL_STATUS_OK;
 }
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 /**
  * Release the given payload back to the memory pool.
  * @param node_tx TX node to release or forward
@@ -1936,7 +1936,7 @@ static isoal_status_t ll_iso_pdu_release(struct node_tx_iso *node_tx,
 
 static int init_reset(void)
 {
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	memq_link_t *link;
 
 	RXFIFO_INIT(iso_rx);
@@ -1960,7 +1960,7 @@ static int init_reset(void)
 	RXFIFO_ALLOC(iso_rx, UINT8_MAX);
 #endif /* CONFIG_BT_CTLR_SYNC_ISO) || CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	/* Initialize tx pool. */
 	mem_init(mem_iso_tx.pool, NODE_TX_BUFFER_SIZE, BT_CTLR_ISO_TX_PDU_BUFFERS,
 		 &mem_iso_tx.free);
@@ -1982,7 +1982,7 @@ static int init_reset(void)
 	return 0;
 }
 
-#if defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 void ull_iso_resume_ticker_start(struct lll_event *resume_event,
 				 uint16_t group_handle,
 				 uint16_t stream_handle,
@@ -2003,7 +2003,7 @@ void ull_iso_resume_ticker_start(struct lll_event *resume_event,
 	} else if (IS_CIS_HANDLE(stream_handle)) {
 		ticker_id = TICKER_ID_CONN_ISO_RESUME_BASE + group_handle;
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	} else if (IS_SYNC_ISO_HANDLE(stream_handle)) {
 		ticker_id = TICKER_ID_SCAN_SYNC_ISO_RESUME_BASE + group_handle;
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
@@ -2031,7 +2031,7 @@ void ull_iso_resume_ticker_start(struct lll_event *resume_event,
 
 				phy = conn->lll.phy_rx;
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
-#if defined(CONFIG_BT_CTLR_SYNC_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 			} else if (IS_SYNC_ISO_HANDLE(stream_handle)) {
 				struct ll_sync_iso_set *sync_iso;
 				uint16_t stream_idx;
