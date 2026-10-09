@@ -573,7 +573,11 @@ void ull_scan_aux_setup(memq_link_t *link, struct node_rx_pdu *rx)
 
 		/* Broadcast ISO synchronize */
 		if (sync_iso) {
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+			ull_sync_iso_gis_setup(sync_iso, rx, ptr, acad_len);
+#else
 			ull_sync_iso_setup(sync_iso, rx, ptr, acad_len);
+#endif
 		}
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
 	}
@@ -1976,7 +1980,11 @@ void ull_scan_aux_setup(memq_link_t *link, struct node_rx_pdu *rx)
 
 		/* Broadcast ISO synchronize */
 		if (sync_iso) {
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+			ull_sync_iso_gis_setup(sync_iso, rx, ptr, acad_len);
+#else
 			ull_sync_iso_setup(sync_iso, rx, ptr, acad_len);
+#endif
 		}
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
 	}

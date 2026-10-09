@@ -40,6 +40,7 @@ DEFINE_FFF_GLOBALS;
 #include "lll_scan.h"
 #include "lll_sync.h"
 #include "lll_sync_iso.h"
+#include "lll_sync_iso_gis.h"
 
 #include "ull_adv_types.h"
 #include "ull_scan_types.h"

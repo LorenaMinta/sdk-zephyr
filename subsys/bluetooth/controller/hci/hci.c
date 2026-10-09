@@ -46,6 +46,7 @@
 #include "lll/lll_df_types.h"
 #include "ll_sw/lll_sync.h"
 #include "ll_sw/lll_sync_iso.h"
+#include "ll_sw/lll_sync_iso_gis.h"
 #include "ll_sw/lll_conn.h"
 #include "ll_sw/lll_conn_iso.h"
 #include "ll_sw/lll_iso_tx.h"
@@ -1881,10 +1882,15 @@ static void le_big_create_sync(struct net_buf *buf, struct net_buf **evt)
 
 	sync_handle = sys_le16_to_cpu(cmd->sync_handle);
 	sync_timeout = sys_le16_to_cpu(cmd->sync_timeout);
-
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+	status = ll_big_gis_sync_create(cmd->big_handle, sync_handle,
+				    cmd->encryption, cmd->bcode, cmd->mse,
+				    sync_timeout, cmd->num_bis, cmd->bis);
+#else
 	status = ll_big_sync_create(cmd->big_handle, sync_handle,
 				    cmd->encryption, cmd->bcode, cmd->mse,
 				    sync_timeout, cmd->num_bis, cmd->bis);
+#endif
 
 	*evt = cmd_status(status);
 }
@@ -1899,7 +1905,11 @@ static void le_big_terminate_sync(struct net_buf *buf, struct net_buf **evt,
 	uint8_t status;
 
 	big_handle = cmd->big_handle;
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+	status = ll_big_gis_sync_terminate(big_handle, node_rx);
+#else
 	status = ll_big_sync_terminate(big_handle, node_rx);
+#endif
 
 	rp = hci_cmd_complete(evt, sizeof(*rp));
 	rp->status = status;

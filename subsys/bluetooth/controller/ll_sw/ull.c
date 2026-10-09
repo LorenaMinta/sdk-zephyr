@@ -682,12 +682,18 @@ int ll_init(struct k_sem *sem_rx)
 		return err;
 	}
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO)
 	err = ull_sync_iso_init();
 	if (err) {
 		return err;
 	}
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+	err = ull_sync_iso_gis_init();
+	if (err) {
+		return err;
+	}
+#endif /* CONFIG_BT_CTLR_GIS_ISO */
 #endif /* CONFIG_BT_CTLR_SYNC_PERIODIC */
 
 #if defined(CONFIG_BT_CONN)
@@ -829,9 +835,14 @@ void ll_reset(void)
 
 #if defined(CONFIG_BT_OBSERVER)
 #if defined(CONFIG_BT_CTLR_SYNC_PERIODIC)
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO)
 	/* Reset sync iso sets */
 	err = ull_sync_iso_reset();
+	LL_ASSERT(!err);
+#endif /* CONFIG_BT_CTLR_SYNC_ISO */
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+	/* Reset sync iso sets */
+	err = ull_sync_iso_gis_reset();
 	LL_ASSERT(!err);
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
 
@@ -1677,8 +1688,11 @@ void ll_rx_mem_release(void **node_rx)
 		{
 			struct ll_sync_iso_set *sync_iso =
 				(void *)rx_free->rx_ftr.param;
-
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+			ull_sync_iso_gis_stream_release(sync_iso);
+#else
 			ull_sync_iso_stream_release(sync_iso);
+#endif
 		}
 		break;
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
@@ -3082,15 +3096,27 @@ static inline void rx_demux_event_done(memq_link_t *link,
 
 #if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	case EVENT_DONE_EXTRA_TYPE_SYNC_ISO_ESTAB:
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+		ull_sync_iso_gis_estab_done(done);
+#else
 		ull_sync_iso_estab_done(done);
+#endif
 		break;
 
 	case EVENT_DONE_EXTRA_TYPE_SYNC_ISO:
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+		ull_sync_iso_gis_done(done);
+#else
 		ull_sync_iso_done(done);
+#endif
 		break;
 
 	case EVENT_DONE_EXTRA_TYPE_SYNC_ISO_TERMINATE:
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+		ull_sync_iso_gis_done_terminate(done);
+#else
 		ull_sync_iso_done_terminate(done);
+#endif
 		break;
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
 #endif /* CONFIG_BT_CTLR_SYNC_PERIODIC */

@@ -46,6 +46,7 @@
 #include "ll_sw/lll.h"
 #include "lll/lll_df_types.h"
 #include "ll_sw/lll_sync_iso.h"
+#include "ll_sw/lll_sync_iso_gis.h"
 #include "ll_sw/lll_conn.h"
 #include "ll_sw/lll_conn_iso.h"
 #include "ll_sw/isoal.h"
@@ -601,7 +602,11 @@ static inline struct net_buf *encode_node(struct node_rx_pdu *node_rx,
 			isoal_status_t err;
 
 			stream_handle = LL_BIS_SYNC_IDX_FROM_HANDLE(node_rx->hdr.handle);
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+			stream = ull_sync_iso_gis_stream_get(stream_handle);
+#else
 			stream = ull_sync_iso_stream_get(stream_handle);
+#endif
 
 			/* Check validity of the data path sink. FIXME: A channel disconnect race
 			 * may cause ISO data pending without valid data path.

@@ -26,6 +26,7 @@
 #include "ull_adv_types.h"
 #include "lll_sync.h"
 #include "lll_sync_iso.h"
+#include "lll_sync_iso_gis.h"
 #include "ull_sync_types.h"
 
 #define BT_PER_ADV_SYNC_MAX 1

@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if 0
-
 #include <stdint.h>
 #include <string.h>
 
@@ -78,7 +76,7 @@ static void isr_rx_ctrl_recv(struct lll_sync_iso *lll, struct pdu_bis *pdu);
 static uint8_t trx_cnt;
 static uint8_t crc_ok_anchor;
 
-int lll_sync_iso_init(void)
+int lll_sync_iso_gis_init(void)
 {
 	int err;
 
@@ -90,7 +88,7 @@ int lll_sync_iso_init(void)
 	return 0;
 }
 
-int lll_sync_iso_reset(void)
+int lll_sync_iso_gis_reset(void)
 {
 	int err;
 
@@ -102,19 +100,19 @@ int lll_sync_iso_reset(void)
 	return 0;
 }
 
-void lll_sync_iso_create_prepare(void *param)
+void lll_sync_iso_gis_create_prepare(void *param)
 {
 	prepare(param);
 	create_prepare_bh(param);
 }
 
-void lll_sync_iso_prepare(void *param)
+void lll_sync_iso_gis_prepare(void *param)
 {
 	prepare(param);
 	prepare_bh(param);
 }
 
-void lll_sync_iso_flush(uint8_t handle, struct lll_sync_iso *lll)
+void lll_sync_iso_gis_flush(uint8_t handle, struct lll_sync_iso *lll)
 {
 	ARG_UNUSED(handle);
 	ARG_UNUSED(lll);
@@ -282,7 +280,7 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 
 	/* Skip subevents until first selected BIS */
 	stream_handle = lll->stream_handle[lll->stream_curr];
-	stream = ull_sync_iso_lll_stream_get(stream_handle);
+	stream = ull_sync_iso_gis_lll_stream_get(stream_handle);
 	if ((stream->bis_index != lll->bis_curr) &&
 	    (stream->bis_index <= lll->num_bis)) {
 		/* First selected BIS */
@@ -421,7 +419,7 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 	uint32_t overhead;
 
 	overhead = lll_preempt_calc(ull, (TICKER_ID_SCAN_SYNC_ISO_BASE +
-					  ull_sync_iso_lll_index_get(lll)), ticks_at_event);
+					  ull_sync_iso_gis_lll_index_get(lll)), ticks_at_event);
 	/* check if preempt to start has changed */
 	if (overhead) {
 		LL_ASSERT_OVERHEAD(overhead);
@@ -655,7 +653,7 @@ static void isr_rx(void *param)
 
 		crc_ok_anchor = crc_ok;
 
-		sync_stream = ull_sync_iso_lll_stream_get(lll->stream_handle[0]);
+		sync_stream = ull_sync_iso_gis_lll_stream_get(lll->stream_handle[0]);
 
 		if (IS_ENABLED(CONFIG_BT_CTLR_SYNC_ISO_SEQUENTIAL) &&
 		    is_sequential_packing) {
@@ -755,7 +753,7 @@ static void isr_rx(void *param)
 
 		/* Get reference to stream context */
 		stream_handle = lll->stream_handle[stream_curr];
-		sync_stream = ull_sync_iso_lll_stream_get(stream_handle);
+		sync_stream = ull_sync_iso_gis_lll_stream_get(stream_handle);
 
 		/* Store the received PDU if selected stream and not already
 		 * received (say in previous event as pre-transmitted PDU.
@@ -936,7 +934,7 @@ isr_rx_find_subevent:
 
 			stream_curr = ++lll->stream_curr;
 			stream_handle = lll->stream_handle[stream_curr];
-			sync_stream = ull_sync_iso_lll_stream_get(stream_handle);
+			sync_stream = ull_sync_iso_gis_lll_stream_get(stream_handle);
 			if (sync_stream->bis_index <= lll->num_bis) {
 				uint32_t payload_offset;
 				uint16_t payload_index;
@@ -1021,7 +1019,7 @@ isr_rx_interleaved:
 
 			stream_curr = ++lll->stream_curr;
 			stream_handle = lll->stream_handle[stream_curr];
-			sync_stream = ull_sync_iso_lll_stream_get(stream_handle);
+			sync_stream = ull_sync_iso_gis_lll_stream_get(stream_handle);
 			if (sync_stream->bis_index <= lll->num_bis) {
 				uint8_t payload_offset;
 				uint8_t payload_index;
@@ -1074,7 +1072,7 @@ isr_rx_interleaved:
 		lll->stream_curr = 0U;
 		stream_curr = 0U;
 		stream_handle = lll->stream_handle[stream_curr];
-		sync_stream = ull_sync_iso_lll_stream_get(stream_handle);
+		sync_stream = ull_sync_iso_gis_lll_stream_get(stream_handle);
 		if (sync_stream->bis_index <= lll->num_bis) {
 			lll->bis_curr = sync_stream->bis_index;
 			bis_idx = lll->bis_curr - 1U;
@@ -1322,7 +1320,7 @@ isr_rx_next_subevent:
 	 * microseconds by when a PDU header is to be received for each
 	 * subevent.
 	 */
-	stream = ull_sync_iso_lll_stream_get(lll->stream_handle[0]);
+	stream = ull_sync_iso_gis_lll_stream_get(lll->stream_handle[0]);
 	if (IS_ENABLED(CONFIG_BT_CTLR_SYNC_ISO_SEQUENTIAL) &&
 	    is_sequential_packing) {
 		nse = ((lll->bis_curr - stream->bis_index) *
@@ -1479,7 +1477,7 @@ static void isr_rx_done(void *param)
 			uint8_t payload_tail;
 
 			stream_handle = lll->stream_handle[stream_curr];
-			stream = ull_sync_iso_lll_stream_get(stream_handle);
+			stream = ull_sync_iso_gis_lll_stream_get(stream_handle);
 			/* Skip BIS indices not synchronized. bis_index is 0x01 to 0x1F,
 			 * where as bis_idx is 0 indexed.
 			 */
@@ -1702,7 +1700,7 @@ static void next_chan_calc_int(struct lll_sync_iso *lll, uint16_t event_counter)
 		uint16_t stream_handle;
 
 		stream_handle = lll->stream_handle[stream_curr];
-		sync_stream = ull_sync_iso_lll_stream_get(stream_handle);
+		sync_stream = ull_sync_iso_gis_lll_stream_get(stream_handle);
 		if (sync_stream->bis_index <= lll->num_bis) {
 			bis_prev = sync_stream->bis_index - 1U;
 		} else {
@@ -1740,7 +1738,7 @@ static void next_chan_calc_int(struct lll_sync_iso *lll, uint16_t event_counter)
 		if (bis_prev >= lll->num_bis) {
 			struct lll_sync_iso_stream *sync_stream;
 
-			sync_stream = ull_sync_iso_lll_stream_get(lll->stream_handle[0]);
+			sync_stream = ull_sync_iso_gis_lll_stream_get(lll->stream_handle[0]);
 			bis_idx = sync_stream->bis_index - 1U;
 		} else {
 			bis_idx = bis_prev;
@@ -1773,7 +1771,7 @@ static void isr_rx_iso_data_valid(const struct lll_sync_iso *const lll,
 	/* Decrement BN as payload_count was pre-incremented */
 	iso_meta->payload_number -= lll->bn;
 
-	stream = ull_sync_iso_lll_stream_get(lll->stream_handle[0]);
+	stream = ull_sync_iso_gis_lll_stream_get(lll->stream_handle[0]);
 	iso_meta->timestamp = HAL_TICKER_TICKS_TO_US(radio_tmr_start_get()) +
 			      radio_tmr_aa_restore() +
 			      (DIV_ROUND_UP(lll->ptc_curr, lll->bn) *
@@ -1813,7 +1811,7 @@ static void isr_rx_iso_data_invalid(const struct lll_sync_iso *const lll,
 	/* Decrement BN as payload_count was pre-incremented */
 	iso_meta->payload_number -= (latency + 1U) * lll->bn;
 
-	stream = ull_sync_iso_lll_stream_get(lll->stream_handle[0]);
+	stream = ull_sync_iso_gis_lll_stream_get(lll->stream_handle[0]);
 	iso_meta->timestamp = HAL_TICKER_TICKS_TO_US(radio_tmr_start_get()) +
 			      radio_tmr_aa_restore() - addr_us_get(lll->phy);
 
@@ -1867,5 +1865,3 @@ static void isr_rx_ctrl_recv(struct lll_sync_iso *lll, struct pdu_bis *pdu)
 		/* Unknown control PDU, ignore */
 	}
 }
-
-#endif

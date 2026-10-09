@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if 0
-
 #include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/bluetooth/hci_types.h>
@@ -90,7 +88,7 @@ static struct ll_iso_rx_test_mode
 			test_mode[CONFIG_BT_CTLR_SYNC_ISO_STREAM_COUNT];
 static void *stream_free;
 
-uint8_t ll_big_sync_create(uint8_t big_handle, uint16_t sync_handle,
+uint8_t ll_big_gis_sync_create(uint8_t big_handle, uint16_t sync_handle,
 			   uint8_t encryption, uint8_t *bcode, uint8_t mse,
 			   uint16_t sync_timeout, uint8_t num_bis,
 			   uint8_t *bis)
@@ -240,7 +238,7 @@ uint8_t ll_big_sync_create(uint8_t big_handle, uint16_t sync_handle,
 	return BT_HCI_ERR_SUCCESS;
 }
 
-uint8_t ll_big_sync_terminate(uint8_t big_handle, void **rx)
+uint8_t ll_big_gis_sync_terminate(uint8_t big_handle, void **rx)
 {
 	static memq_link_t link;
 	static struct mayfly mfy = {0, 0, &link, NULL, lll_flush};
@@ -316,7 +314,7 @@ uint8_t ll_big_sync_terminate(uint8_t big_handle, void **rx)
 	sync_iso->flush_sem = NULL;
 
 	/* Release resources */
-	ull_sync_iso_stream_release(sync_iso);
+	ull_sync_iso_gis_stream_release(sync_iso);
 
 	link_sync_lost = sync_iso->node_rx_lost.rx.hdr.link;
 	ll_rx_link_release(link_sync_lost);
@@ -324,7 +322,7 @@ uint8_t ll_big_sync_terminate(uint8_t big_handle, void **rx)
 	return BT_HCI_ERR_SUCCESS;
 }
 
-int ull_sync_iso_init(void)
+int ull_sync_iso_gis_init(void)
 {
 	int err;
 
@@ -336,7 +334,7 @@ int ull_sync_iso_init(void)
 	return 0;
 }
 
-int ull_sync_iso_reset(void)
+int ull_sync_iso_gis_reset(void)
 {
 	int err;
 
@@ -348,12 +346,12 @@ int ull_sync_iso_reset(void)
 	return 0;
 }
 
-uint8_t ull_sync_iso_lll_index_get(struct lll_sync_iso *lll)
+uint8_t ull_sync_iso_gis_lll_index_get(struct lll_sync_iso *lll)
 {
 	return ARRAY_INDEX(ll_sync_iso, HDR_LLL2ULL(lll));
 }
 
-struct ll_sync_iso_set *ull_sync_iso_by_stream_get(uint16_t handle)
+struct ll_sync_iso_set *ull_sync_iso_gis_by_stream_get(uint16_t handle)
 {
 	if (handle >= CONFIG_BT_CTLR_SYNC_ISO_STREAM_COUNT) {
 		return NULL;
@@ -362,12 +360,12 @@ struct ll_sync_iso_set *ull_sync_iso_by_stream_get(uint16_t handle)
 	return sync_iso_get(stream_pool[handle].big_handle);
 }
 
-struct lll_sync_iso_stream *ull_sync_iso_stream_get(uint16_t handle)
+struct lll_sync_iso_stream *ull_sync_iso_gis_stream_get(uint16_t handle)
 {
 	struct ll_sync_iso_set *sync_iso;
 
 	/* Get the BIG Sync context and check for not being terminated */
-	sync_iso = ull_sync_iso_by_stream_get(handle);
+	sync_iso = ull_sync_iso_gis_by_stream_get(handle);
 	if (!sync_iso || !sync_iso->sync) {
 		return NULL;
 	}
@@ -375,12 +373,12 @@ struct lll_sync_iso_stream *ull_sync_iso_stream_get(uint16_t handle)
 	return &stream_pool[handle];
 }
 
-struct lll_sync_iso_stream *ull_sync_iso_lll_stream_get(uint16_t handle)
+struct lll_sync_iso_stream *ull_sync_iso_gis_lll_stream_get(uint16_t handle)
 {
-	return ull_sync_iso_stream_get(handle);
+	return ull_sync_iso_gis_stream_get(handle);
 }
 
-void ull_sync_iso_stream_release(struct ll_sync_iso_set *sync_iso)
+void ull_sync_iso_gis_stream_release(struct ll_sync_iso_set *sync_iso)
 {
 	struct lll_sync_iso *lll;
 
@@ -391,7 +389,7 @@ void ull_sync_iso_stream_release(struct ll_sync_iso_set *sync_iso)
 		uint16_t stream_handle;
 
 		stream_handle = lll->stream_handle[lll->stream_count];
-		stream = ull_sync_iso_stream_get(stream_handle);
+		stream = ull_sync_iso_gis_stream_get(stream_handle);
 		LL_ASSERT(stream);
 
 		dp = stream->dp;
@@ -407,7 +405,7 @@ void ull_sync_iso_stream_release(struct ll_sync_iso_set *sync_iso)
 	sync_iso->sync = NULL;
 }
 
-void ull_sync_iso_setup(struct ll_sync_iso_set *sync_iso,
+void ull_sync_iso_gis_setup(struct ll_sync_iso_set *sync_iso,
 			struct node_rx_pdu *node_rx,
 			uint8_t *acad, uint8_t acad_len)
 {
@@ -585,7 +583,7 @@ void ull_sync_iso_setup(struct ll_sync_iso_set *sync_iso,
 	sync_iso_offset_us += PDU_BIG_INFO_OFFS_GET(bi) *
 			      lll->window_size_event_us;
 	/* Skip to first selected BIS subevent */
-	stream = ull_sync_iso_stream_get(lll->stream_handle[0]);
+	stream = ull_sync_iso_gis_stream_get(lll->stream_handle[0]);
 	if (lll->bis_spacing >= (lll->sub_interval * lll->nse)) {
 		sync_iso_offset_us += (stream->bis_index - 1U) *
 				      lll->sub_interval *
@@ -688,7 +686,7 @@ void ull_sync_iso_setup(struct ll_sync_iso_set *sync_iso,
 	}
 
 	/* setup to use ISO create prepare function until sync established */
-	mfy_lll_prepare.fp = lll_sync_iso_create_prepare;
+	mfy_lll_prepare.fp = lll_sync_iso_gis_create_prepare;
 
 	handle = sync_iso_handle_get(sync_iso);
 	ret = ticker_start(TICKER_INSTANCE_ID_CTLR, TICKER_USER_ID_ULL_HIGH,
@@ -711,7 +709,7 @@ void ull_sync_iso_setup(struct ll_sync_iso_set *sync_iso,
 		  (ret == TICKER_STATUS_BUSY));
 }
 
-void ull_sync_iso_estab_done(struct node_rx_event_done *done)
+void ull_sync_iso_gis_estab_done(struct node_rx_event_done *done)
 {
 	struct ll_sync_iso_set *sync_iso;
 	struct node_rx_sync_iso *se;
@@ -719,7 +717,7 @@ void ull_sync_iso_estab_done(struct node_rx_event_done *done)
 
 	if (done->extra.trx_cnt || done->extra.estab_failed) {
 		/* Switch to normal prepare */
-		mfy_lll_prepare.fp = lll_sync_iso_prepare;
+		mfy_lll_prepare.fp = lll_sync_iso_gis_prepare;
 
 		/* Get reference to ULL context */
 		sync_iso = CONTAINER_OF(done->param, struct ll_sync_iso_set, ull);
@@ -745,10 +743,10 @@ void ull_sync_iso_estab_done(struct node_rx_event_done *done)
 		ll_rx_put_sched(rx->hdr.link, rx);
 	}
 
-	ull_sync_iso_done(done);
+	ull_sync_iso_gis_done(done);
 }
 
-void ull_sync_iso_done(struct node_rx_event_done *done)
+void ull_sync_iso_gis_done(struct node_rx_event_done *done)
 {
 	struct ll_sync_iso_set *sync_iso;
 	uint32_t ticks_drift_minus;
@@ -854,7 +852,7 @@ void ull_sync_iso_done(struct node_rx_event_done *done)
 	}
 }
 
-void ull_sync_iso_done_terminate(struct node_rx_event_done *done)
+void ull_sync_iso_gis_done_terminate(struct node_rx_event_done *done)
 {
 	struct ll_sync_iso_set *sync_iso;
 	struct lll_sync_iso *lll;
@@ -907,7 +905,7 @@ static int init_reset(void)
 	memset(&ll_sync_iso, 0, sizeof(ll_sync_iso));
 
 	/* Initialize LLL */
-	return lll_sync_iso_init();
+	return lll_sync_iso_gis_init();
 }
 
 static struct ll_sync_iso_set *sync_iso_get(uint8_t handle)
@@ -962,7 +960,7 @@ static void timeout_cleanup(struct ll_sync_iso_set *sync_iso)
 	rx->hdr.handle = sync_iso_handle_get(sync_iso);
 	rx->rx_ftr.param = sync_iso;
 
-	if (mfy_lll_prepare.fp == lll_sync_iso_prepare) {
+	if (mfy_lll_prepare.fp == lll_sync_iso_gis_prepare) {
 		rx->hdr.type = NODE_RX_TYPE_SYNC_ISO_LOST;
 		*((uint8_t *)rx->pdu) = BT_HCI_ERR_CONN_TIMEOUT;
 	} else {
@@ -1141,5 +1139,3 @@ static void stop_ticker(struct ll_sync_iso_set *sync_iso, ticker_op_func fp_op_f
 	LL_ASSERT((ret == TICKER_STATUS_SUCCESS) ||
 		  (ret == TICKER_STATUS_BUSY));
 }
-
-#endif
