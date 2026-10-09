@@ -32,7 +32,6 @@
 #include "lll_adv.h"
 #include "lll_adv_pdu.h"
 #include "lll_adv_iso.h"
-#include "lll_adv_iso_gis.h"
 #include "lll_iso_tx.h"
 
 #include "lll_internal.h"

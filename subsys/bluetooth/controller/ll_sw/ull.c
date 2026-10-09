@@ -737,8 +737,15 @@ int ll_init(struct k_sem *sem_rx)
 	}
 #endif /* CONFIG_BT_CTLR_CENTRAL_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO)
 	err = ull_adv_iso_init();
+	if (err) {
+		return err;
+	}
+#endif /* CONFIG_BT_CTLR_ADV_ISO */
+
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+	err = ull_adv_iso_gis_init();
 	if (err) {
 		return err;
 	}
@@ -803,9 +810,15 @@ void ll_reset(void)
 	 */
 
 #if defined(CONFIG_BT_BROADCASTER)
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO)
 	/* Reset adv iso sets */
 	err = ull_adv_iso_reset();
+	LL_ASSERT(!err);
+#endif /* CONFIG_BT_CTLR_ADV_ISO */
+
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+	/* Reset adv iso sets */
+	err = ull_adv_iso_gis_reset();
 	LL_ASSERT(!err);
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 
@@ -1042,7 +1055,11 @@ ll_rx_get_again:
 				/* Update Channel Map in BIGInfo present in
 				 * Periodic Advertising PDU.
 				 */
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+				ull_adv_iso_gis_chm_complete(rx);
+#else
 				ull_adv_iso_chm_complete(rx);
+#endif
 
 				rx_release_replenish((struct node_rx_hdr *)rx);
 
@@ -1443,8 +1460,11 @@ void ll_rx_mem_release(void **node_rx)
 		case NODE_RX_TYPE_BIG_TERMINATE:
 		{
 			struct ll_adv_iso_set *adv_iso = rx_free->rx_ftr.param;
-
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+			ull_adv_iso_gis_stream_release(adv_iso);
+#else
 			ull_adv_iso_stream_release(adv_iso);
+#endif
 		}
 		break;
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
@@ -3022,7 +3042,7 @@ static inline void rx_demux_event_done(memq_link_t *link,
 		ull_adv_aux_done(done);
 		break;
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO)
 	case EVENT_DONE_EXTRA_TYPE_ADV_ISO_COMPLETE:
 		ull_adv_iso_done_complete(done);
 		break;
@@ -3031,6 +3051,16 @@ static inline void rx_demux_event_done(memq_link_t *link,
 		ull_adv_iso_done_terminate(done);
 		break;
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
+
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+	case EVENT_DONE_EXTRA_TYPE_ADV_ISO_COMPLETE:
+		ull_adv_iso_gis_done_complete(done);
+		break;
+
+	case EVENT_DONE_EXTRA_TYPE_ADV_ISO_TERMINATE:
+		ull_adv_iso_gis_done_terminate(done);
+		break;
+#endif /* CONFIG_BT_CTLR_GIS_ISO */
 #endif /* CONFIG_BT_CTLR_ADV_EXT */
 #endif /* CONFIG_BT_CTLR_ADV_EXT || CONFIG_BT_CTLR_JIT_SCHEDULING */
 #endif /* CONFIG_BT_BROADCASTER */

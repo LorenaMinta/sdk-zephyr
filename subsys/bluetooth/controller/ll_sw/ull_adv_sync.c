@@ -2893,7 +2893,11 @@ static void ticker_cb(uint32_t ticks_at_expire, uint32_t ticks_drift,
 #if (defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)) && \
 	!defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
 	if (lll->iso) {
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+		ull_adv_iso_gis_offset_get(sync);
+#else
 		ull_adv_iso_offset_get(sync);
+#endif
 	}
 #endif /* CONFIG_BT_CTLR_ADV_ISO && !CONFIG_BT_TICKER_EXT_EXPIRE_INFO */
 

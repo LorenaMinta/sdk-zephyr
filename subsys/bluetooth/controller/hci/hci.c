@@ -1738,12 +1738,17 @@ static void le_create_big(struct net_buf *buf, struct net_buf **evt)
 	sdu_interval = sys_get_le24(cmd->sdu_interval);
 	max_sdu = sys_le16_to_cpu(cmd->max_sdu);
 	max_latency = sys_le16_to_cpu(cmd->max_latency);
-
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+	status = ll_big_gis_create(big_handle, adv_handle, cmd->num_bis,
+			       sdu_interval, max_sdu, max_latency, cmd->rtn,
+			       cmd->phy, cmd->packing, cmd->framing,
+			       cmd->encryption, cmd->bcode);
+#else
 	status = ll_big_create(big_handle, adv_handle, cmd->num_bis,
 			       sdu_interval, max_sdu, max_latency, cmd->rtn,
 			       cmd->phy, cmd->packing, cmd->framing,
 			       cmd->encryption, cmd->bcode);
-
+#endif
 	*evt = cmd_status(status);
 }
 
@@ -1775,8 +1780,11 @@ static void le_terminate_big(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_cp_le_terminate_big *cmd = (void *)buf->data;
 	uint8_t status;
-
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+	status = ll_big_gis_terminate(cmd->big_handle, cmd->reason);
+#else
 	status = ll_big_terminate(cmd->big_handle, cmd->reason);
+#endif
 
 	*evt = cmd_status(status);
 }
@@ -6128,13 +6136,21 @@ int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 
 		/* Get BIS stream handle and stream context */
 		stream_handle = LL_BIS_ADV_IDX_FROM_HANDLE(handle);
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+		stream = ull_adv_iso_gis_stream_get(stream_handle);
+#else
 		stream = ull_adv_iso_stream_get(stream_handle);
+#endif
 		if (!stream || !stream->dp) {
 			LOG_ERR("Invalid BIS stream");
 			return -EINVAL;
 		}
 
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+		adv_iso = ull_adv_iso_gis_by_stream_get(stream_handle);
+#else
 		adv_iso = ull_adv_iso_by_stream_get(stream_handle);
+#endif
 		if (!adv_iso) {
 			LOG_ERR("No BIG associated with stream handle");
 			return -EINVAL;

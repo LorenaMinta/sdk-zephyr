@@ -316,37 +316,69 @@ void ull_adv_sync_extra_data_set_clear(void *extra_data_prev,
 void ull_adv_sync_offset_get(struct ll_adv_set *adv);
 
 int ull_adv_iso_init(void);
+int ull_adv_iso_gis_init(void);
 int ull_adv_iso_reset(void);
+int ull_adv_iso_gis_reset(void);
 
 /* Return ll_adv_iso_set context (unconditional) */
 struct ll_adv_iso_set *ull_adv_iso_get(uint8_t handle);
 
+/* Return ll_adv_iso_set context (unconditional) */
+struct ll_adv_iso_set *ull_adv_iso_gis_get(uint8_t handle);
+
 /* helper function to initial channel map update indications */
 uint8_t ull_adv_iso_chm_update(void);
+
+/* helper function to initial channel map update indications */
+uint8_t ull_adv_iso_gis_chm_update(void);
 
 /* helper function to cleanup after channel map update complete */
 void ull_adv_iso_chm_complete(struct node_rx_pdu *rx);
 
+/* helper function to cleanup after channel map update complete */
+void ull_adv_iso_gis_chm_complete(struct node_rx_pdu *rx);
+
 /* helper function to schedule a mayfly to get BIG offset */
 void ull_adv_iso_offset_get(struct ll_adv_sync_set *sync);
+
+/* helper function to schedule a mayfly to get BIG offset */
+void ull_adv_iso_gis_offset_get(struct ll_adv_sync_set *sync);
 
 /* helper function to handle adv ISO done BIG complete events */
 void ull_adv_iso_done_complete(struct node_rx_event_done *done);
 
+/* helper function to handle adv ISO done BIG complete events */
+void ull_adv_iso_gis_done_complete(struct node_rx_event_done *done);
+
 /* helper function to handle adv ISO done BIG terminate events */
 void ull_adv_iso_done_terminate(struct node_rx_event_done *done);
+
+/* helper function to handle adv ISO done BIG terminate events */
+void ull_adv_iso_gis_done_terminate(struct node_rx_event_done *done);
 
 /* helper function to return adv_iso instance */
 struct ll_adv_iso_set *ull_adv_iso_by_stream_get(uint16_t handle);
 
+/* helper function to return adv_iso instance */
+struct ll_adv_iso_set *ull_adv_iso_gis_by_stream_get(uint16_t handle);
+
 /* helper function to return adv_iso stream instance */
 struct lll_adv_iso_stream *ull_adv_iso_stream_get(uint16_t handle);
+
+/* helper function to return adv_iso stream instance */
+struct lll_adv_iso_stream *ull_adv_gis_iso_stream_get(uint16_t handle);
 
 /* helper function to release stream instances */
 void ull_adv_iso_stream_release(struct ll_adv_iso_set *adv_iso);
 
+/* helper function to release stream instances */
+void ull_adv_iso_gis_stream_release(struct ll_adv_iso_set *adv_iso);
+
 /* helper function to return time reservation for Broadcast ISO event */
 uint32_t ull_adv_iso_max_time_get(const struct ll_adv_iso_set *adv_iso);
+
+/* helper function to return time reservation for Broadcast ISO event */
+uint32_t ull_adv_iso_gis_max_time_get(const struct ll_adv_iso_set *adv_iso);
 
 #if defined(CONFIG_BT_CTLR_DF_ADV_CTE_TX)
 /* helper function to release unused DF configuration memory */

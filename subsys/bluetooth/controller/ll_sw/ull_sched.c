@@ -671,12 +671,18 @@ static struct ull_hdr *ull_hdr_get_cb(uint8_t ticker_id, uint32_t *ticks_slot)
 	} else if (IN_RANGE(ticker_id, TICKER_ID_ADV_ISO_BASE,
 			    TICKER_ID_ADV_ISO_LAST)) {
 		struct ll_adv_iso_set *adv_iso;
-
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+		adv_iso = ull_adv_iso_gis_get(ticker_id - TICKER_ID_ADV_ISO_BASE);
+#else
 		adv_iso = ull_adv_iso_get(ticker_id - TICKER_ID_ADV_ISO_BASE);
+#endif
 		if (adv_iso) {
 			uint32_t time_us;
-
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+			time_us = ull_adv_iso_gis_max_time_get(adv_iso);
+#else
 			time_us = ull_adv_iso_max_time_get(adv_iso);
+#endif
 			*ticks_slot = HAL_TICKER_US_TO_TICKS_CEIL(time_us);
 
 			return &adv_iso->ull;

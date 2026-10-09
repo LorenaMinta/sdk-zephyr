@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if 0
-
 #include <stdint.h>
 #include <string.h>
 
@@ -33,7 +31,6 @@
 #include "lll_adv_types.h"
 #include "lll_adv.h"
 #include "lll_adv_pdu.h"
-#include "lll_adv_iso.h"
 #include "lll_adv_iso_gis.h"
 #include "lll_iso_tx.h"
 
@@ -69,7 +66,7 @@ static void next_chan_calc_int(struct lll_adv_iso *lll, uint16_t event_counter);
 static void isr_done_create(void *param);
 static void isr_done_term(void *param);
 
-int lll_adv_iso_init(void)
+int lll_adv_iso_gis_init(void)
 {
 	int err;
 
@@ -81,7 +78,7 @@ int lll_adv_iso_init(void)
 	return 0;
 }
 
-int lll_adv_iso_reset(void)
+int lll_adv_iso_gis_reset(void)
 {
 	int err;
 
@@ -93,13 +90,13 @@ int lll_adv_iso_reset(void)
 	return 0;
 }
 
-void lll_adv_iso_create_prepare(void *param)
+void lll_adv_iso_gis_create_prepare(void *param)
 {
 	prepare(param);
 	create_prepare_bh(param);
 }
 
-void lll_adv_iso_prepare(void *param)
+void lll_adv_iso_gis_prepare(void *param)
 {
 	prepare(param);
 	prepare_bh(param);
@@ -271,7 +268,7 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 	while (bis_idx--) {
 		stream_handle = lll->stream_handle[bis_idx];
 		handle = LL_BIS_ADV_HANDLE_FROM_IDX(stream_handle);
-		stream = ull_adv_iso_lll_stream_get(stream_handle);
+		stream = ull_adv_iso_gis_lll_stream_get(stream_handle);
 		LL_ASSERT(stream);
 
 		do {
@@ -651,7 +648,7 @@ static void isr_tx_common(void *param,
 		for (uint8_t bis_idx = 0U; bis_idx < lll->num_bis; bis_idx++) {
 			stream_handle = lll->stream_handle[bis_idx];
 			handle = LL_BIS_ADV_HANDLE_FROM_IDX(stream_handle);
-			stream = ull_adv_iso_lll_stream_get(stream_handle);
+			stream = ull_adv_iso_gis_lll_stream_get(stream_handle);
 			LL_ASSERT(stream);
 
 			do {
@@ -744,7 +741,7 @@ static void isr_tx_common(void *param,
 		memq_link_t *link;
 
 		stream_handle = lll->stream_handle[lll->bis_curr - 1U];
-		stream = ull_adv_iso_lll_stream_get(stream_handle);
+		stream = ull_adv_iso_gis_lll_stream_get(stream_handle);
 		LL_ASSERT(stream);
 
 		link = memq_peek_n(stream->memq_tx.head, stream->memq_tx.tail,
@@ -1092,5 +1089,3 @@ static void isr_done_term(void *param)
 
 	lll_isr_cleanup(param);
 }
-
-#endif

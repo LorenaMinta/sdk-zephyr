@@ -50,6 +50,10 @@ if(CONFIG_BT_BROADCASTER)
     CONFIG_BT_CTLR_ADV_ISO
     ll_sw/ull_adv_iso.c
     )
+  zephyr_library_sources_ifdef(
+    CONFIG_BT_CTLR_GIS_ISO
+    ll_sw/ull_adv_iso_gis.c
+    )
 endif()
 
 if(CONFIG_BT_OBSERVER)

@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if 0
-
 #include <soc.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
@@ -32,7 +30,6 @@
 #include "lll/lll_adv_types.h"
 #include "lll_adv.h"
 #include "lll/lll_adv_pdu.h"
-#include "lll_adv_iso.h"
 #include "lll_adv_iso_gis.h"
 #include "lll_iso_tx.h"
 
@@ -106,7 +103,7 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 			  uint8_t packing, uint8_t framing, uint8_t encryption,
 			  uint8_t *bcode,
 			  uint16_t iso_interval, uint8_t nse, uint16_t max_pdu,
-			  uint8_t bn, uint8_t irc, uint8_t pto, bool test_config)
+			  uint8_t bn, uint8_t irc, uint8_t pto)
 {
 	uint8_t bi_ad[PDU_BIG_INFO_ENCRYPTED_SIZE + 2U];
 	struct lll_adv_sync *lll_adv_sync;
@@ -194,42 +191,12 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 			return BT_HCI_ERR_INVALID_PARAM;
 		}
 
-		if (test_config) {
-			if (!IN_RANGE(iso_interval, 0x0004, 0x0C80)) {
-				return BT_HCI_ERR_INVALID_PARAM;
-			}
+		if (max_latency > 0x0FA0) {
+			return BT_HCI_ERR_INVALID_PARAM;
+		}
 
-			if (!IN_RANGE(nse, 0x01, 0x1F)) {
-				return BT_HCI_ERR_INVALID_PARAM;
-			}
-
-			if (!IN_RANGE(max_pdu, 0x01, MIN(0xFB, LL_BIS_OCTETS_TX_MAX))) {
-				return BT_HCI_ERR_INVALID_PARAM;
-			}
-
-			if (!IN_RANGE(bn, 0x01, 0x07)) {
-				return BT_HCI_ERR_INVALID_PARAM;
-			}
-
-			if (!IN_RANGE(irc, 0x01, 0x0F)) {
-				return BT_HCI_ERR_INVALID_PARAM;
-			}
-
-			if (pto > 0x0F) {
-				return BT_HCI_ERR_INVALID_PARAM;
-			}
-
-			if (pto && !(bn * irc < nse)) {
-				return BT_HCI_ERR_INVALID_PARAM;
-			}
-		} else {
-			if (max_latency > 0x0FA0) {
-				return BT_HCI_ERR_INVALID_PARAM;
-			}
-
-			if (rtn > 0x0F) {
-				return BT_HCI_ERR_INVALID_PARAM;
-			}
+		if (rtn > 0x0F) {
+			return BT_HCI_ERR_INVALID_PARAM;
 		}
 	}
 
@@ -348,55 +315,46 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 			adv_iso_stream_handle_get(stream);
 	}
 
-	if (test_config) {
-		lll_adv_iso->bn = bn;
-		lll_adv_iso->iso_interval = iso_interval;
-		lll_adv_iso->irc = irc;
-		lll_adv_iso->nse = nse;
-		lll_adv_iso->max_pdu = max_pdu;
-		iso_interval_us = iso_interval * PERIODIC_INT_UNIT_US;
-
+	
+	if (framing) {
+		/* Try to allocate room for one SDU + header */
+		lll_adv_iso->max_pdu = MIN(LL_BIS_OCTETS_TX_MAX,
+					   max_sdu + PDU_ISO_SEG_HDR_SIZE +
+					    PDU_ISO_SEG_TIMEOFFSET_SIZE);
 	} else {
-		if (framing) {
-			/* Try to allocate room for one SDU + header */
-			lll_adv_iso->max_pdu = MIN(LL_BIS_OCTETS_TX_MAX,
-						   max_sdu + PDU_ISO_SEG_HDR_SIZE +
-						    PDU_ISO_SEG_TIMEOFFSET_SIZE);
-		} else {
-			lll_adv_iso->max_pdu = MIN(LL_BIS_OCTETS_TX_MAX, max_sdu);
-		}
-
-		/* FIXME: SDU per max latency, consider how to use Pre-transmission in the
-		 *        calculations.
-		 *        Take decision based on how ptc_calc function forces the use of
-		 *        Pre-Transmission when not using test command. Refer to comments in
-		 *        ptc_calc function.
-		 */
-		sdu_per_event = MAX((max_latency * USEC_PER_MSEC / sdu_interval), 2U) -
-				1U;
-
-		/* BN (Burst Count), Mandatory BN = 1 */
-		bn = DIV_ROUND_UP(max_sdu, lll_adv_iso->max_pdu) * sdu_per_event;
-		if (bn > PDU_BIG_BN_MAX) {
-			/* Restrict each BIG event to maximum burst per BIG event */
-			lll_adv_iso->bn = PDU_BIG_BN_MAX;
-
-			/* Ceil the required burst count per SDU to next maximum burst
-			 * per BIG event.
-			 */
-			bn = DIV_ROUND_UP(bn, PDU_BIG_BN_MAX) * PDU_BIG_BN_MAX;
-		} else {
-			lll_adv_iso->bn = bn;
-		}
-
-		/* Calculate ISO interval */
-		/* iso_interval shall be at least SDU interval,
-		 * or integer multiple of SDU interval for unframed PDUs
-		 */
-		iso_interval_us = ((sdu_interval * lll_adv_iso->bn * sdu_per_event) /
-				(bn * PERIODIC_INT_UNIT_US)) * PERIODIC_INT_UNIT_US;
-		lll_adv_iso->iso_interval = iso_interval_us / PERIODIC_INT_UNIT_US;
+		lll_adv_iso->max_pdu = MIN(LL_BIS_OCTETS_TX_MAX, max_sdu);
 	}
+
+	/* FIXME: SDU per max latency, consider how to use Pre-transmission in the
+	 *        calculations.
+	 *        Take decision based on how ptc_calc function forces the use of
+	 *        Pre-Transmission when not using test command. Refer to comments in
+	 *        ptc_calc function.
+	 */
+	sdu_per_event = MAX((max_latency * USEC_PER_MSEC / sdu_interval), 2U) -
+			1U;
+
+	/* BN (Burst Count), Mandatory BN = 1 */
+	bn = DIV_ROUND_UP(max_sdu, lll_adv_iso->max_pdu) * sdu_per_event;
+	if (bn > PDU_BIG_BN_MAX) {
+		/* Restrict each BIG event to maximum burst per BIG event */
+		lll_adv_iso->bn = PDU_BIG_BN_MAX;
+
+		/* Ceil the required burst count per SDU to next maximum burst
+		 * per BIG event.
+		 */
+		bn = DIV_ROUND_UP(bn, PDU_BIG_BN_MAX) * PDU_BIG_BN_MAX;
+	} else {
+		lll_adv_iso->bn = bn;
+	}
+
+	/* Calculate ISO interval */
+	/* iso_interval shall be at least SDU interval,
+	 * or integer multiple of SDU interval for unframed PDUs
+	 */
+	iso_interval_us = ((sdu_interval * lll_adv_iso->bn * sdu_per_event) /
+			(bn * PERIODIC_INT_UNIT_US)) * PERIODIC_INT_UNIT_US;
+	lll_adv_iso->iso_interval = iso_interval_us / PERIODIC_INT_UNIT_US;
 
 	/* Calculate max available ISO event spacing */
 	slot_overhead = HAL_TICKER_TICKS_TO_US(ticks_slot_overhead);
@@ -408,16 +366,6 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 
 	/* Negotiate event spacing */
 	do {
-		if (!test_config) {
-			/* Immediate Repetition Count (IRC), Mandatory IRC = 1 */
-			lll_adv_iso->irc = rtn + 1U;
-
-			/* Calculate NSE (No. of Sub Events), Mandatory NSE = 1,
-			 * without PTO added.
-			 */
-			lll_adv_iso->nse = lll_adv_iso->bn * lll_adv_iso->irc;
-		}
-
 		/* NOTE: Calculate sub_interval, if interleaved then it is Num_BIS x
 		 *       BIS_Spacing (by BT Spec.)
 		 *       else if sequential, then by our implementation, lets keep it
@@ -438,7 +386,7 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 		 */
 		if (event_spacing > event_spacing_max) {
 			/* Check if we can reduce RTN to meet eventing spacing */
-			if (!test_config && rtn) {
+			if (rtn) {
 				rtn--;
 			} else {
 				break;
@@ -457,28 +405,10 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 		return BT_HCI_ERR_INVALID_PARAM;
 	}
 
-	/* Decision to use requested Pre-Transmission Offset or force Pre-Transmission when
-	 * possible (Zephyr Controller decision).
+	/* No Pre-Transmission possible
 	 */
-	lll_adv_iso->ptc = ptc_calc(lll_adv_iso, event_spacing, event_spacing_max);
-
-	if (test_config) {
-		lll_adv_iso->pto = pto;
-
-		if (pto && !lll_adv_iso->ptc) {
-			return BT_HCI_ERR_INVALID_PARAM;
-		}
-	} else {
-		/* Pre-Transmission Offset (PTO) */
-		if (lll_adv_iso->ptc) {
-			lll_adv_iso->pto = MAX((bn / lll_adv_iso->bn), BT_CTLR_ADV_ISO_PTO_MIN);
-		} else {
-			lll_adv_iso->pto = 0U;
-		}
-
-		/* Make room for pre-transmissions */
-		lll_adv_iso->nse += lll_adv_iso->ptc;
-	}
+	lll_adv_iso->ptc = 0u;
+	lll_adv_iso->pto = 0U;
 
 	/* Based on packing requested, sequential or interleaved */
 	if (false) {
@@ -681,7 +611,7 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 	return BT_HCI_ERR_SUCCESS;
 }
 
-uint8_t ll_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
+uint8_t ll_big_gis_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 		      uint32_t sdu_interval, uint16_t max_sdu,
 		      uint16_t max_latency, uint8_t rtn, uint8_t phy,
 		      uint8_t packing, uint8_t framing, uint8_t encryption,
@@ -694,10 +624,10 @@ uint8_t ll_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 			  0 /*max_pdu*/,
 			  0 /*bn*/,
 			  0 /*irc*/,
-			  0 /*pto*/,
-			  false);
+			  0 /*pto*/);
 }
 
+#if 0
 uint8_t ll_big_test_create(uint8_t big_handle, uint8_t adv_handle,
 			   uint8_t num_bis, uint32_t sdu_interval,
 			   uint16_t iso_interval, uint8_t nse, uint16_t max_sdu,
@@ -711,8 +641,9 @@ uint8_t ll_big_test_create(uint8_t big_handle, uint8_t adv_handle,
 			  phy, packing, framing, encryption, bcode,
 			  iso_interval, nse, max_pdu, bn, irc, pto, true);
 }
+#endif
 
-uint8_t ll_big_terminate(uint8_t big_handle, uint8_t reason)
+uint8_t ll_big_gis_terminate(uint8_t big_handle, uint8_t reason)
 {
 	struct lll_adv_sync *lll_adv_sync;
 	struct lll_adv_iso *lll_adv_iso;
@@ -788,7 +719,7 @@ uint8_t ll_big_terminate(uint8_t big_handle, uint8_t reason)
 	return BT_HCI_ERR_SUCCESS;
 }
 
-int ull_adv_iso_init(void)
+int ull_adv_iso_gis_init(void)
 {
 	int err;
 
@@ -800,7 +731,7 @@ int ull_adv_iso_init(void)
 	return 0;
 }
 
-int ull_adv_iso_reset(void)
+int ull_adv_iso_gis_reset(void)
 {
 	uint8_t handle;
 	int err;
@@ -854,7 +785,7 @@ int ull_adv_iso_reset(void)
 			uint16_t stream_handle;
 
 			stream_handle = adv_iso_lll->stream_handle[adv_iso_lll->num_bis];
-			stream = ull_adv_iso_stream_get(stream_handle);
+			stream = ull_adv_iso_gis_stream_get(stream_handle);
 			if (stream) {
 				stream->link_tx_free = NULL;
 			}
@@ -878,12 +809,12 @@ int ull_adv_iso_reset(void)
 	return 0;
 }
 
-struct ll_adv_iso_set *ull_adv_iso_get(uint8_t handle)
+struct ll_adv_iso_set *ull_adv_iso_gis_get(uint8_t handle)
 {
 	return adv_iso_get(handle);
 }
 
-uint8_t ull_adv_iso_chm_update(void)
+uint8_t ull_adv_iso_gis_chm_update(void)
 {
 	uint8_t handle;
 
@@ -898,7 +829,7 @@ uint8_t ull_adv_iso_chm_update(void)
 	return 0;
 }
 
-void ull_adv_iso_chm_complete(struct node_rx_pdu *rx)
+void ull_adv_iso_gis_chm_complete(struct node_rx_pdu *rx)
 {
 	struct lll_adv_sync *sync_lll;
 	struct lll_adv_iso *iso_lll;
@@ -916,7 +847,7 @@ void ull_adv_iso_chm_complete(struct node_rx_pdu *rx)
 	}
 }
 
-#if defined(CONFIG_BT_CTLR_HCI_ADV_HANDLE_MAPPING)
+#if 0 && defined(CONFIG_BT_CTLR_HCI_ADV_HANDLE_MAPPING)
 uint8_t ll_adv_iso_by_hci_handle_get(uint8_t hci_handle, uint8_t *handle)
 {
 	struct ll_adv_iso_set *adv_iso;
@@ -964,7 +895,7 @@ uint8_t ll_adv_iso_by_hci_handle_new(uint8_t hci_handle, uint8_t *handle)
 }
 #endif /* CONFIG_BT_CTLR_HCI_ADV_HANDLE_MAPPING */
 
-void ull_adv_iso_offset_get(struct ll_adv_sync_set *sync)
+void ull_adv_iso_gis_offset_get(struct ll_adv_sync_set *sync)
 {
 	static memq_link_t link;
 	static struct mayfly mfy = {0U, 0U, &link, NULL, mfy_iso_offset_get};
@@ -976,7 +907,7 @@ void ull_adv_iso_offset_get(struct ll_adv_sync_set *sync)
 	LL_ASSERT(!ret);
 }
 
-#if defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
+#if 0 && defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
 void ull_adv_iso_lll_biginfo_fill(struct pdu_adv *pdu, struct lll_adv_sync *lll_sync)
 {
 	struct lll_adv_iso *lll_iso;
@@ -1022,7 +953,7 @@ void ull_adv_iso_lll_biginfo_fill(struct pdu_adv *pdu, struct lll_adv_sync *lll_
 }
 #endif /* CONFIG_BT_TICKER_EXT_EXPIRE_INFO */
 
-void ull_adv_iso_done_complete(struct node_rx_event_done *done)
+void ull_adv_iso_gis_done_complete(struct node_rx_event_done *done)
 {
 	struct ll_adv_iso_set *adv_iso;
 	struct lll_adv_iso *lll;
@@ -1030,7 +961,7 @@ void ull_adv_iso_done_complete(struct node_rx_event_done *done)
 	memq_link_t *link;
 
 	/* switch to normal prepare */
-	mfy_lll_prepare.fp = lll_adv_iso_prepare;
+	mfy_lll_prepare.fp = lll_adv_iso_gis_prepare;
 
 	/* Get reference to ULL context */
 	adv_iso = CONTAINER_OF(done->param, struct ll_adv_iso_set, ull);
@@ -1056,7 +987,7 @@ void ull_adv_iso_done_complete(struct node_rx_event_done *done)
 	ll_rx_put_sched(link, rx);
 }
 
-void ull_adv_iso_done_terminate(struct node_rx_event_done *done)
+void ull_adv_iso_gis_done_terminate(struct node_rx_event_done *done)
 {
 	struct ll_adv_iso_set *adv_iso;
 	struct lll_adv_iso *lll;
@@ -1081,7 +1012,7 @@ void ull_adv_iso_done_terminate(struct node_rx_event_done *done)
 	lll->handle = LLL_ADV_HANDLE_INVALID;
 }
 
-struct ll_adv_iso_set *ull_adv_iso_by_stream_get(uint16_t handle)
+struct ll_adv_iso_set *ull_adv_iso_gis_by_stream_get(uint16_t handle)
 {
 	if (handle >= CONFIG_BT_CTLR_ADV_ISO_STREAM_COUNT) {
 		return NULL;
@@ -1090,7 +1021,7 @@ struct ll_adv_iso_set *ull_adv_iso_by_stream_get(uint16_t handle)
 	return adv_iso_get(stream_pool[handle].big_handle);
 }
 
-struct lll_adv_iso_stream *ull_adv_iso_stream_get(uint16_t handle)
+struct lll_adv_iso_stream *ull_adv_gis_iso_stream_get(uint16_t handle)
 {
 	if (handle >= CONFIG_BT_CTLR_ADV_ISO_STREAM_COUNT) {
 		return NULL;
@@ -1099,12 +1030,12 @@ struct lll_adv_iso_stream *ull_adv_iso_stream_get(uint16_t handle)
 	return &stream_pool[handle];
 }
 
-struct lll_adv_iso_stream *ull_adv_iso_lll_stream_get(uint16_t handle)
+struct lll_adv_iso_stream *ull_adv_iso_gis_lll_stream_get(uint16_t handle)
 {
-	return ull_adv_iso_stream_get(handle);
+	return ull_adv_iso_gis_stream_get(handle);
 }
 
-void ull_adv_iso_stream_release(struct ll_adv_iso_set *adv_iso)
+void ull_adv_iso_gis_stream_release(struct ll_adv_iso_set *adv_iso)
 {
 	struct lll_adv_iso *lll;
 
@@ -1116,7 +1047,7 @@ void ull_adv_iso_stream_release(struct ll_adv_iso_set *adv_iso)
 		memq_link_t *link;
 
 		stream_handle = lll->stream_handle[lll->num_bis];
-		stream = ull_adv_iso_stream_get(stream_handle);
+		stream = ull_adv_iso_gis_stream_get(stream_handle);
 
 		LL_ASSERT(!stream->link_tx_free);
 		link = memq_deinit(&stream->memq_tx.head,
@@ -1141,7 +1072,7 @@ void ull_adv_iso_stream_release(struct ll_adv_iso_set *adv_iso)
 	lll->adv = NULL;
 }
 
-uint32_t ull_adv_iso_max_time_get(const struct ll_adv_iso_set *adv_iso)
+uint32_t ull_adv_iso_gis_max_time_get(const struct ll_adv_iso_set *adv_iso)
 {
 	return adv_iso_time_get(adv_iso, true);
 }
@@ -1325,7 +1256,7 @@ static uint32_t adv_iso_start(struct ll_adv_iso_set *adv_iso,
 	}
 
 	/* setup to use ISO create prepare function for first radio event */
-	mfy_lll_prepare.fp = lll_adv_iso_create_prepare;
+	mfy_lll_prepare.fp = lll_adv_iso_gis_create_prepare;
 
 	ret_cb = TICKER_STATUS_BUSY;
 	ret = ticker_start(TICKER_INSTANCE_ID_CTLR, TICKER_USER_ID_THREAD,
@@ -1708,7 +1639,7 @@ static void tx_lll_flush(void *param)
 
 		stream_handle = lll->stream_handle[num_bis];
 		handle = LL_BIS_ADV_HANDLE_FROM_IDX(stream_handle);
-		stream = ull_adv_iso_stream_get(stream_handle);
+		stream = ull_adv_iso_gis_stream_get(stream_handle);
 
 		link2 = memq_dequeue(stream->memq_tx.tail, &stream->memq_tx.head,
 				     (void **)&tx);
@@ -1735,5 +1666,3 @@ static void tx_lll_flush(void *param)
 	/* Enqueue the terminate towards ULL context */
 	ull_rx_put_sched(link, rx);
 }
-
-#endif
