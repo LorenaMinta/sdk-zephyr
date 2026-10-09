@@ -5,7 +5,7 @@
  */
 
 /* BIS Broadcaster */
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 #define LL_BIS_ADV_HANDLE_BASE BT_CTLR_ADV_ISO_STREAM_HANDLE_BASE
 #define LL_BIS_ADV_IDX_FROM_HANDLE(conn_handle) \
 	((conn_handle) - (LL_BIS_ADV_HANDLE_BASE))
@@ -26,7 +26,7 @@
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 
 /* BIS Synchronized Receiver */
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 #define LL_BIS_SYNC_HANDLE_BASE BT_CTLR_SYNC_ISO_STREAM_HANDLE_BASE
 #define LL_BIS_SYNC_IDX_FROM_HANDLE(conn_handle) \
 	((conn_handle) - (LL_BIS_SYNC_HANDLE_BASE))

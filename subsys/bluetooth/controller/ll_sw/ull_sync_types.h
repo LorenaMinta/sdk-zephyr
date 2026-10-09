@@ -8,7 +8,7 @@
 #define LL_SYNC_STATE_ADDR_MATCH 0x01
 #define LL_SYNC_STATE_CREATED    0x02
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 struct ll_sync_iso_set;
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
 
@@ -53,7 +53,7 @@ struct ll_sync_set {
 	uint8_t is_stop:1; /* sync terminate or cancel requested */
 	uint8_t sync_expire:3; /* countdown of 6 before fail to establish */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	uint8_t enc : 1;
 	uint8_t num_bis : 5;
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
@@ -80,7 +80,7 @@ struct ll_sync_set {
 	struct node_rx_pdu *rx_incomplete;
 #endif /* CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	struct {
 		struct node_rx_pdu *node_rx_estab;
 
@@ -113,7 +113,7 @@ struct node_rx_past_received {
 	uint16_t service_data;
 };
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 struct ll_sync_iso_set {
 	struct ull_hdr ull;
 	struct lll_sync_iso lll;

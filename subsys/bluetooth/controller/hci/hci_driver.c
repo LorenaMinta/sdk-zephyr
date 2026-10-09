@@ -356,7 +356,7 @@ static void prio_recv_thread(void *p1, void *p2, void *p3)
 
 		/* While there are completed rx nodes */
 		while ((num_cmplt = ll_rx_get((void *)&node_rx, &handle))) {
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 			int err;
 
 			buf = bt_buf_get_evt(BT_HCI_EVT_NUM_COMPLETED_PACKETS,
@@ -434,7 +434,7 @@ static void prio_recv_thread(void *p1, void *p2, void *p3)
 #else /* !CONFIG_BT_CTLR_RX_PRIO_STACK_SIZE */
 static void node_rx_recv(const struct device *dev)
 {
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	const struct hci_driver_data *data = dev->data;
 #endif /* CONFIG_BT_CONN || CONFIG_BT_CTLR_ADV_ISO */
 
@@ -468,7 +468,7 @@ static void node_rx_recv(const struct device *dev)
 		/* While there are completed rx nodes */
 		num_cmplt = ll_rx_get((void *)&node_rx, &handle);
 		while (num_cmplt != 0U) {
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 			struct net_buf *buf;
 
 			LL_ASSERT(node_rx == NULL);
@@ -594,7 +594,7 @@ static inline struct net_buf *encode_node(struct node_rx_pdu *node_rx,
 			}
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 		} else if (IS_SYNC_ISO_HANDLE(node_rx->hdr.handle)) {
 			const struct lll_sync_iso_stream *stream;
 			struct isoal_pdu_rx isoal_rx;

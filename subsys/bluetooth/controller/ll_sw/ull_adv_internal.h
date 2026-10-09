@@ -366,7 +366,7 @@ struct ll_adv_iso_set *ull_adv_iso_gis_by_stream_get(uint16_t handle);
 struct lll_adv_iso_stream *ull_adv_iso_stream_get(uint16_t handle);
 
 /* helper function to return adv_iso stream instance */
-struct lll_adv_iso_stream *ull_adv_gis_iso_stream_get(uint16_t handle);
+struct lll_adv_iso_stream *ull_adv_iso_gis_stream_get(uint16_t handle);
 
 /* helper function to release stream instances */
 void ull_adv_iso_stream_release(struct ll_adv_iso_set *adv_iso);

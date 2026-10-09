@@ -208,7 +208,7 @@ static int prepare_cb(struct lll_prepare_param *p)
 		radio_switch_complete_and_disable();
 	}
 
-#if (defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)) && defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) && defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
 	if (lll->iso) {
 		ull_adv_iso_lll_biginfo_fill(pdu, lll);
 	}

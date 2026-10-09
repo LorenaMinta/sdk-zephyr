@@ -355,7 +355,7 @@ static int group_free_slot_get(uint8_t user_id, uint32_t ticks_slot_abs,
 
 			return 0;
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 		} else if (IN_RANGE(ticker_id, TICKER_ID_ADV_ISO_BASE,
 				    TICKER_ID_ADV_ISO_LAST)) {
 			*ticks_anchor += ticks_to_expire;
@@ -569,7 +569,7 @@ static bool ticker_match_any_op_cb(uint8_t ticker_id, uint32_t ticks_slot,
 	       IN_RANGE(ticker_id, TICKER_ID_ADV_SYNC_BASE,
 			TICKER_ID_ADV_SYNC_LAST) ||
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	       IN_RANGE(ticker_id, TICKER_ID_ADV_ISO_BASE,
 			TICKER_ID_ADV_ISO_LAST) ||
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
@@ -667,7 +667,7 @@ static struct ull_hdr *ull_hdr_get_cb(uint8_t ticker_id, uint32_t *ticks_slot)
 			return &sync->ull;
 		}
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	} else if (IN_RANGE(ticker_id, TICKER_ID_ADV_ISO_BASE,
 			    TICKER_ID_ADV_ISO_LAST)) {
 		struct ll_adv_iso_set *adv_iso;

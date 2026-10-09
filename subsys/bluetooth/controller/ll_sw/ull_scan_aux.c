@@ -158,7 +158,7 @@ static inline struct ll_sync_set *sync_create_get(struct ll_scan_set *scan)
 static inline struct ll_sync_iso_set *
 	sync_iso_create_get(struct ll_sync_set *sync)
 {
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	return sync->iso.sync_iso;
 #else /* !CONFIG_BT_CTLR_SYNC_ISO */
 	return NULL;
@@ -555,7 +555,7 @@ void ull_scan_aux_setup(memq_link_t *link, struct node_rx_pdu *rx)
 		/* Periodic Advertising Channel Map Indication */
 		ull_sync_chm_update(rx->hdr.handle, ptr, acad_len);
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 		struct ll_sync_set *sync_set;
 		struct pdu_big_info *bi;
 		uint8_t bi_size;
@@ -1962,7 +1962,7 @@ void ull_scan_aux_setup(memq_link_t *link, struct node_rx_pdu *rx)
 		/* Periodic Advertising Channel Map Indication */
 		ull_sync_chm_update(rx->hdr.handle, ptr, acad_len);
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 		struct ll_sync_set *sync_set;
 		struct pdu_big_info *bi;
 		uint8_t bi_size;

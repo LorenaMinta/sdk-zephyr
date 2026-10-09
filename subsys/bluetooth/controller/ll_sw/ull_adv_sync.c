@@ -120,7 +120,7 @@ static void ticker_cb(uint32_t ticks_at_expire, uint32_t ticks_drift,
 		      uint32_t remainder, uint16_t lazy, uint8_t force,
 		      void *param);
 
-#if (defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)) && defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) && defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
 static void ticker_update_op_cb(uint32_t status, void *param);
 
 static struct ticker_ext ll_adv_sync_ticker_ext[CONFIG_BT_CTLR_ADV_SYNC_SET];
@@ -236,7 +236,7 @@ uint8_t ll_adv_sync_param_set(uint8_t handle, uint16_t interval, uint16_t flags)
 	return 0;
 }
 
-#if (defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)) && defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) && defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
 void ull_adv_sync_iso_created(struct ll_adv_sync_set *sync)
 {
 	if (sync->lll.iso && sync->is_started) {
@@ -830,7 +830,7 @@ uint32_t ull_adv_sync_start(struct ll_adv_set *adv,
 
 	sync_handle = sync_handle_get(sync);
 
-#if (defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)) && \
+#if defined(CONFIG_BT_CTLR_ADV_ISO) && \
 	defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
 	if (sync->lll.iso) {
 		ll_adv_sync_ticker_ext[sync_handle].expire_info_id =
@@ -856,7 +856,7 @@ uint32_t ull_adv_sync_start(struct ll_adv_set *adv,
 			   (sync->ull.ticks_slot + ticks_slot_overhead),
 			   ticker_cb, sync,
 			   ull_ticker_status_give, (void *)&ret_cb
-#if (defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)) && \
+#if defined(CONFIG_BT_CTLR_ADV_ISO) && \
 	defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
 			   ,
 			   &ll_adv_sync_ticker_ext[sync_handle]
@@ -2845,7 +2845,7 @@ static void ticker_cb(uint32_t ticks_at_expire, uint32_t ticks_drift,
 	static memq_link_t link;
 	static struct mayfly mfy = {0, 0, &link, NULL, lll_adv_sync_prepare};
 	static struct lll_prepare_param p;
-#if (defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)) && \
+#if defined(CONFIG_BT_CTLR_ADV_ISO) && \
 	defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
 	struct ticker_ext_context *context = param;
 	struct ll_adv_sync_set *sync = context->context;
@@ -2864,7 +2864,7 @@ static void ticker_cb(uint32_t ticks_at_expire, uint32_t ticks_drift,
 	ref = ull_ref_inc(&sync->ull);
 	LL_ASSERT(ref);
 
-#if (defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)) && \
+#if defined(CONFIG_BT_CTLR_ADV_ISO) && \
 	defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
 	if (lll->iso) {
 		struct lll_adv_iso *lll_iso = lll->iso;
@@ -2890,7 +2890,7 @@ static void ticker_cb(uint32_t ticks_at_expire, uint32_t ticks_drift,
 			     TICKER_USER_ID_LLL, 0, &mfy);
 	LL_ASSERT(!ret);
 
-#if (defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)) && \
+#if defined(CONFIG_BT_CTLR_ADV_ISO) && \
 	!defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
 	if (lll->iso) {
 #if defined(CONFIG_BT_CTLR_GIS_ISO)
@@ -2904,7 +2904,7 @@ static void ticker_cb(uint32_t ticks_at_expire, uint32_t ticks_drift,
 	DEBUG_RADIO_PREPARE_A(1);
 }
 
-#if (defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)) && \
+#if defined(CONFIG_BT_CTLR_ADV_ISO) && \
 	defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
 static void ticker_update_op_cb(uint32_t status, void *param)
 {

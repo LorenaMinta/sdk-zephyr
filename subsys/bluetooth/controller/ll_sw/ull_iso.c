@@ -313,7 +313,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 				sdu_interval = cig->c_sdu_interval;
 			}
 		}
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	} else if (IS_ADV_ISO_HANDLE(handle)) {
 		struct ll_adv_iso_set *adv_iso;
 		struct lll_adv_iso *lll_iso;
@@ -350,7 +350,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 		max_octets = lll_iso->max_pdu;
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	} else if (IS_SYNC_ISO_HANDLE(handle)) {
 		struct ll_sync_iso_set *sync_iso;
 		struct lll_sync_iso *lll_iso;
@@ -533,7 +533,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 				cis->hdr.datapath_in = dp;
 			}
 
-			if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) || IS_ENABLED(CONFIG_BT_CTLR_GIS_ISO)) && adv_stream != NULL) {
+			if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) || IS_ENABLED(CONFIG_BT_CTLR_ADV_GIS_ISO)) && adv_stream != NULL) {
 				adv_stream->dp = dp;
 			}
 
@@ -600,7 +600,7 @@ uint8_t ll_remove_iso_path(uint16_t handle, uint8_t path_dir)
 		}
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	} else if (IS_ADV_ISO_HANDLE(handle)) {
 		struct lll_adv_iso_stream *adv_stream;
 		struct ll_iso_datapath *dp;
@@ -631,7 +631,7 @@ uint8_t ll_remove_iso_path(uint16_t handle, uint8_t path_dir)
 		}
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	} else if (IS_SYNC_ISO_HANDLE(handle)) {
 		struct lll_sync_iso_stream *sync_stream;
 		struct ll_iso_datapath *dp;
@@ -741,7 +741,7 @@ static isoal_status_t ll_iso_test_sdu_emit(const struct isoal_sink             *
 
 		test_mode_rx = &cis->hdr.test_mode.rx;
 		max_sdu = cis->c_max_sdu;
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	} else if (IS_SYNC_ISO_HANDLE(handle)) {
 		struct lll_sync_iso_stream *sync_stream;
 		struct ll_sync_iso_set *sync_iso;
@@ -864,7 +864,7 @@ uint8_t ll_iso_receive_test(uint16_t handle, uint8_t payload_type)
 
 	uint32_t stream_sync_delay;
 	uint32_t group_sync_delay;
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	uint16_t stream_handle;
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
 	uint16_t iso_interval;
@@ -907,7 +907,7 @@ uint8_t ll_iso_receive_test(uint16_t handle, uint8_t payload_type)
 		iso_interval = cig->iso_interval;
 		stream_sync_delay = cis->sync_delay;
 		group_sync_delay = cig->sync_delay;
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	} else if (IS_SYNC_ISO_HANDLE(handle)) {
 		/* Get the sync stream from the handle */
 		struct lll_sync_iso_stream *sync_stream;
@@ -1480,7 +1480,7 @@ int ll_iso_tx_mem_enqueue(uint16_t handle, void *node_tx, void *link)
 		cis = ll_conn_iso_stream_get(handle);
 		memq_enqueue(link, node_tx, &cis->lll.memq_tx.tail);
 
-	} else if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) || IS_ENABLED(CONFIG_BT_CTLR_GIS_ISO)) &&
+	} else if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) || IS_ENABLED(CONFIG_BT_CTLR_ADV_GIS_ISO)) &&
 		   IS_ADV_ISO_HANDLE(handle)) {
 		struct lll_adv_iso_stream *stream;
 		uint16_t stream_handle;
@@ -1552,7 +1552,7 @@ void ull_iso_lll_ack_enqueue(uint16_t handle, struct node_tx_iso *node_tx)
 			ll_rx_sched();
 #endif /* CONFIG_BT_CTLR_ISO_VENDOR_DATA_PATH */
 		}
-	} else if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) || IS_ENABLED(CONFIG_BT_CTLR_GIS_ISO)) && IS_ADV_ISO_HANDLE(handle)) {
+	} else if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) || IS_ENABLED(CONFIG_BT_CTLR_ADV_GIS_ISO)) && IS_ADV_ISO_HANDLE(handle)) {
 		/* Process as TX ack. TODO: Can be unified with CIS and use
 		 * ISOAL.
 		 */
@@ -1687,7 +1687,7 @@ static void iso_rx_cig_ref_point_update(struct ll_conn_iso_group *cig,
 static void iso_rx_demux(void *param)
 {
 #if defined(CONFIG_BT_CTLR_CONN_ISO) || \
-	defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+	defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	struct ll_iso_datapath *dp;
 #endif  /* CONFIG_BT_CTLR_CONN_ISO || CONFIG_BT_CTLR_SYNC_ISO */
 	struct node_rx_pdu *rx_pdu;
@@ -1730,7 +1730,7 @@ static void iso_rx_demux(void *param)
 					iso_rx_cig_ref_point_update(cig, cis,
 								    &rx_pdu->hdr.rx_iso_meta);
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 				} else if (IS_SYNC_ISO_HANDLE(handle)) {
 					struct lll_sync_iso_stream *sync_stream;
 					uint16_t stream_handle;
@@ -2075,7 +2075,7 @@ void ull_iso_resume_ticker_start(struct lll_event *resume_event,
 	} else if (IS_CIS_HANDLE(stream_handle)) {
 		ticker_id = TICKER_ID_CONN_ISO_RESUME_BASE + group_handle;
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	} else if (IS_SYNC_ISO_HANDLE(stream_handle)) {
 		ticker_id = TICKER_ID_SCAN_SYNC_ISO_RESUME_BASE + group_handle;
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
@@ -2103,7 +2103,7 @@ void ull_iso_resume_ticker_start(struct lll_event *resume_event,
 
 				phy = conn->lll.phy_rx;
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 			} else if (IS_SYNC_ISO_HANDLE(stream_handle)) {
 				struct ll_sync_iso_set *sync_iso;
 				uint16_t stream_idx;

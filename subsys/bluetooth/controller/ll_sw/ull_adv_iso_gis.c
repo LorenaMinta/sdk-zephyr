@@ -66,8 +66,6 @@ static int init_reset(void);
 static struct ll_adv_iso_set *adv_iso_get(uint8_t handle);
 static struct stream *adv_iso_stream_acquire(void);
 static uint16_t adv_iso_stream_handle_get(struct lll_adv_iso_stream *stream);
-static uint8_t ptc_calc(const struct lll_adv_iso *lll, uint32_t event_spacing,
-			uint32_t event_spacing_max);
 static uint32_t adv_iso_time_get(const struct ll_adv_iso_set *adv_iso, bool max);
 static uint32_t adv_iso_start(struct ll_adv_iso_set *adv_iso,
 			      uint32_t iso_interval_us);
@@ -1021,7 +1019,7 @@ struct ll_adv_iso_set *ull_adv_iso_gis_by_stream_get(uint16_t handle)
 	return adv_iso_get(stream_pool[handle].big_handle);
 }
 
-struct lll_adv_iso_stream *ull_adv_gis_iso_stream_get(uint16_t handle)
+struct lll_adv_iso_stream *ull_adv_iso_gis_stream_get(uint16_t handle)
 {
 	if (handle >= CONFIG_BT_CTLR_ADV_ISO_STREAM_COUNT) {
 		return NULL;
@@ -1106,60 +1104,6 @@ static struct stream *adv_iso_stream_acquire(void)
 static uint16_t adv_iso_stream_handle_get(struct lll_adv_iso_stream *stream)
 {
 	return mem_index_get(stream, stream_pool, sizeof(*stream));
-}
-
-static uint8_t ptc_calc(const struct lll_adv_iso *lll, uint32_t event_spacing,
-			uint32_t event_spacing_max)
-{
-	if (event_spacing < event_spacing_max) {
-		uint32_t ptc;
-		uint8_t nse;
-
-		/* Possible maximum Pre-transmission Subevents per BIS.
-		 * sub_interval is at least T_MSS_150 + MPT (hence a value in 8 bits or more), i.e.
-		 * the below division and the subsequent multiplication with lll->bn does not
-		 * overflow.
-		 */
-		ptc = ((event_spacing_max - event_spacing) /
-		       (lll->sub_interval * lll->bn * lll->num_bis)) *
-		      lll->bn;
-
-		/* Required NSE */
-		nse = lll->bn * lll->irc; /* 3 bits * 4 bits, total 7 bits */
-
-		/* Requested NSE is greater than Required NSE, Pre-Transmission offset has been
-		 * provided.
-		 *
-		 * NOTE: This is the case under HCI test command use to create BIG, i.e. test_config
-		 *       variable is true.
-		 */
-		if (lll->nse > nse) {
-			/* Restrict PTC to number of available subevents */
-			ptc = MIN(ptc, lll->nse - nse);
-		} else {
-			/* No PTO requested, Zephyr Controller implementation here will try using
-			 * Pre-Transmisson offset of BT_CTLR_ADV_ISO_PTO_MIN, i.e. restrict to a
-			 * maximum of BN Pre-Transmission subevents per BIS. This allows for a
-			 * better time diversity ensuring skipped or missing reception at the ISO
-			 * Sync Receiver so it can still have another chance at receiving the ISO
-			 * PDUs within the permitted maximum transport latency.
-			 *
-			 * Usecases where BAP Broadcast Audio Assistant role device has a drifting
-			 * ACL Peripheral role active in the BAP Broadcast Audio Sink device.
-			 */
-			ptc = MIN(ptc, (lll->bn * BT_CTLR_ADV_ISO_PTO_GROUP_COUNT));
-		}
-
-		/* FIXME: Do not remember why ptc is 4 bits, it should be 5 bits as ptc is a
-		 *        running buffer offset related to nse. Fix ptc and ptc_curr definitions,
-		 *        until then lets have an assert check here.
-		 */
-		LL_ASSERT(ptc <= BIT_MASK(4));
-
-		return ptc;
-	}
-
-	return 0U;
 }
 
 static uint32_t adv_iso_time_get(const struct ll_adv_iso_set *adv_iso, bool max)

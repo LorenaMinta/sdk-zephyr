@@ -254,7 +254,7 @@ config BT_CTLR_RX_BUFFERS
 
 config BT_CTLR_ISO_RX_BUFFERS
 	int "Number of Isochronous Rx buffers"
-	depends on BT_CTLR_SYNC_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_SYNC_ISO || BT_CTLR_CONN_ISO || BT_CTLR_GIS_ISO
 	default 8
 	range 1 30
 	help
@@ -268,7 +268,7 @@ config BT_CTLR_ISO_RX_BUFFERS
 
 config BT_CTLR_ISO_TX_BUFFERS
 	int "Number of Isochronous Tx buffers"
-	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO || BT_CTLR_ADV_GIS_ISO
 	range 1 $(UINT8_MAX)
 	default BT_ISO_TX_BUF_COUNT if BT_ISO
 	default 3
@@ -278,7 +278,7 @@ config BT_CTLR_ISO_TX_BUFFERS
 
 config BT_CTLR_ISO_TX_BUFFER_SIZE
 	int "Isochronous Tx buffer size"
-	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO || BT_CTLR_ADV_GIS_ISO
 	range 9 4103 if BT_LL_SW_SPLIT
 	range 1 $(UINT16_MAX)
 	default 9 if BT_LL_SW_SPLIT
@@ -295,7 +295,7 @@ config BT_CTLR_ISO_TX_BUFFER_SIZE
 
 config BT_CTLR_ISOAL_SOURCES
 	int "Number of Isochronous Adaptation Layer sources"
-	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO || BT_CTLR_ADV_GIS_ISO
 	range 1 64
 	default 1
 	help
@@ -304,7 +304,7 @@ config BT_CTLR_ISOAL_SOURCES
 
 config BT_CTLR_ISOAL_SINKS
 	int "Number of Isochronous Adaptation Layer sinks"
-	depends on BT_CTLR_SYNC_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_SYNC_ISO || BT_CTLR_CONN_ISO || BT_CTLR_GIS_ISO
 	range 1 64
 	default 1
 	help
@@ -313,7 +313,7 @@ config BT_CTLR_ISOAL_SINKS
 
 config BT_CTLR_ISO_RX_SDU_BUFFERS
 	int "Number of SDU fragments that the ISO-AL can buffer"
-	depends on BT_CTLR_SYNC_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_SYNC_ISO || BT_CTLR_CONN_ISO || BT_CTLR_GIS_ISO
 	default 0
 	range 0 64
 	help
@@ -326,7 +326,7 @@ config BT_CTLR_ISO_RX_SDU_BUFFERS
 
 config BT_CTLR_ISO_VENDOR_DATA_PATH
 	bool "Vendor-specific ISO data path"
-	depends on BT_CTLR_SYNC_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_SYNC_ISO || BT_CTLR_CONN_ISO || BT_CTLR_GIS_ISO
 	select BT_CTLR_HCI_CODEC_AND_DELAY_INFO
 
 choice BT_CTLR_TX_PWR
@@ -902,7 +902,7 @@ config BT_CTLR_ADV_ISO
 	select BT_CTLR_ADV_PERIODIC
 	select BT_CTLR_SET_HOST_FEATURE
 	select BT_CTLR_ADV_ISO_SEQUENTIAL if !BT_CTLR_ADV_ISO_INTERLEAVED
-	default y if BT_ISO_BROADCASTER
+	default y if BT_ISO_BROADCASTER && !BT_CTLR_GIS_ISO
 	help
 	  Enable support for Bluetooth 5.2 LE Isochronous Advertising in the
 	  Controller.
@@ -913,11 +913,11 @@ config BT_CTLR_ADV_ISO
 
 config BT_CTLR_ADV_ISO_SEQUENTIAL
 	bool "LE Broadcast Isochronous Channel advertising sequential packing"
-	depends on BT_CTLR_ADV_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_ADV_GIS_ISO
 
 config BT_CTLR_ADV_ISO_INTERLEAVED
 	bool "LE Broadcast Isochronous Channel advertising interleaved packing"
-	depends on BT_CTLR_ADV_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_ADV_GIS_ISO
 
 config BT_CTLR_SYNC_ISO
 	bool "LE Broadcast Isochronous Channel advertising sync" if !BT_LL_SW_SPLIT
@@ -946,7 +946,7 @@ config BT_CTLR_SYNC_ISO_INTERLEAVED
 
 config BT_CTLR_BROADCAST_ISO
 	bool
-	default BT_CTLR_ADV_ISO || BT_CTLR_SYNC_ISO
+	default BT_CTLR_ADV_ISO || BT_CTLR_SYNC_ISO || BT_CTLR_GIS_ISO
 
 config BT_CTLR_BROADCAST_ISO_ENC
 	bool
@@ -956,7 +956,7 @@ config BT_CTLR_BROADCAST_ISO_ENC
 
 config BT_CTLR_ADV_ISO_SET
 	int "LE Isochronous Channel advertising sets"
-	depends on BT_CTLR_ADV_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_ADV_GIS_ISO
 	range 1 32
 	default BT_ISO_MAX_BIG
 	help
@@ -964,14 +964,14 @@ config BT_CTLR_ADV_ISO_SET
 
 config BT_CTLR_ADV_ISO_STREAM_MAX
 	int "Maximum supported Broadcast ISO Streams per Broadcast ISO group"
-	depends on BT_CTLR_ADV_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_ADV_GIS_ISO
 	range 1 31
 	help
 	  Maximum supported Broadcast ISO Streams per Broadcast ISO group.
 
 config BT_CTLR_ADV_ISO_STREAM_COUNT
 	int "Maximum Broadcast ISO Streams"
-	depends on BT_CTLR_ADV_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_ADV_GIS_ISO
 	range BT_CTLR_ADV_ISO_STREAM_MAX 64
 	default BT_ISO_MAX_CHAN
 	help
@@ -980,7 +980,7 @@ config BT_CTLR_ADV_ISO_STREAM_COUNT
 
 config BT_CTLR_ADV_ISO_PDU_LEN_MAX
 	int "Maximum Broadcast Isochronous Channel PDU Length"
-	depends on BT_CTLR_ADV_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_ADV_GIS_ISO
 	range 1 251
 	default 251
 	help
@@ -1100,7 +1100,7 @@ config BT_CTLR_CONN_ISO_PDU_LEN_MAX
 
 config BT_CTLR_ISO_TX_SDU_LEN_MAX
 	int "Maximum Isochronous Channel Transmit SDU Length"
-	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO || BT_CTLR_GIS_ISO
 	range 1 4095
 	default 1
 	help
@@ -1129,7 +1129,7 @@ config BT_CTLR_ISO
 config BT_CTLR_READ_ISO_LINK_QUALITY
 	bool "LE Read ISO Link Quality"
 	depends on BT_CTLR_READ_ISO_LINK_QUALITY_SUPPORT
-	depends on BT_CTLR_SYNC_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_SYNC_ISO || BT_CTLR_CONN_ISO || BT_CTLR_GIS_ISO
 	help
 	  Enable support for LE Read ISO Link Quality command.
 

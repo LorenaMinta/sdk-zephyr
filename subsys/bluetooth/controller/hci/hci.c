@@ -902,7 +902,7 @@ static void read_supported_commands(struct net_buf *buf, struct net_buf **evt)
 #if defined(CONFIG_BT_CTLR_ADV_PERIODIC)
 	/* LE Set PA Params, LE Set PA Data, LE Set PA Enable */
 	rp->commands[37] |= BIT(2) | BIT(3) | BIT(4);
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	/* LE Create BIG, LE Create BIG Test, LE Terminate BIG */
 	rp->commands[42] |= BIT(5) | BIT(6) | BIT(7);
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
@@ -932,7 +932,7 @@ static void read_supported_commands(struct net_buf *buf, struct net_buf **evt)
 	/* LE Set PA Receive Enable */
 	rp->commands[40] |= BIT(5);
 #endif /* CONFIG_BT_CTLR_SYNC_PERIODIC */
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	/* LE BIG Create Sync, LE BIG Terminate Sync */
 	rp->commands[43] |= BIT(0) | BIT(1);
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
@@ -1713,7 +1713,7 @@ static void le_set_adv_enable(struct net_buf *buf, struct net_buf **evt)
 	*evt = cmd_complete_status(status);
 }
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 static void le_create_big(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_cp_le_create_big *cmd = (void *)buf->data;
@@ -1753,6 +1753,7 @@ static void le_create_big(struct net_buf *buf, struct net_buf **evt)
 	*evt = cmd_status(status);
 }
 
+__attribute__((unused))
 static void le_create_big_test(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_cp_le_create_big_test *cmd = (void *)buf->data;
@@ -1872,7 +1873,7 @@ static void le_set_scan_enable(struct net_buf *buf, struct net_buf **evt)
 	*evt = cmd_complete_status(status);
 }
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 static void le_big_create_sync(struct net_buf *buf, struct net_buf **evt)
 {
 	struct bt_hci_cp_le_big_create_sync *cmd = (void *)buf->data;
@@ -4591,17 +4592,19 @@ static int controller_cmd_handle(uint16_t  ocf, struct net_buf *cmd,
 		le_set_adv_enable(cmd, evt);
 		break;
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	case BT_OCF(BT_HCI_OP_LE_CREATE_BIG):
 		le_create_big(cmd, evt);
 		break;
 
-	case BT_OCF(BT_HCI_OP_LE_CREATE_BIG_TEST):
-		le_create_big_test(cmd, evt);
-		break;
-
 	case BT_OCF(BT_HCI_OP_LE_TERMINATE_BIG):
 		le_terminate_big(cmd, evt);
+		break;
+#endif
+
+#if defined(CONFIG_BT_CTLR_ADV_ISO)
+	case BT_OCF(BT_HCI_OP_LE_CREATE_BIG_TEST):
+		le_create_big_test(cmd, evt);
 		break;
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 #endif /* CONFIG_BT_BROADCASTER */
@@ -4615,7 +4618,7 @@ static int controller_cmd_handle(uint16_t  ocf, struct net_buf *cmd,
 		le_set_scan_enable(cmd, evt);
 		break;
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	case BT_OCF(BT_HCI_OP_LE_BIG_CREATE_SYNC):
 		le_big_create_sync(cmd, evt);
 		break;
@@ -6134,7 +6137,7 @@ int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 		return 0;
 #endif /* CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	} else if (IS_ADV_ISO_HANDLE(handle)) {
 		struct lll_adv_iso_stream *stream;
 		struct ll_adv_iso_set *adv_iso;
@@ -8081,7 +8084,7 @@ static void le_per_adv_sync_lost(struct pdu_data *pdu_data,
 	sep->handle = sys_cpu_to_le16(node_rx->hdr.handle);
 }
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 static void le_big_sync_established(struct pdu_data *pdu,
 				    struct node_rx_pdu *node_rx,
 				    struct net_buf *buf)
@@ -8208,7 +8211,7 @@ static void le_adv_ext_terminate(struct pdu_data *pdu_data,
 		node_rx->rx_ftr.param_adv_term.num_events;
 }
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 static void le_big_complete(struct pdu_data *pdu_data,
 			    struct node_rx_pdu *node_rx,
 			    struct net_buf *buf)
@@ -8752,7 +8755,7 @@ static void encode_control(struct node_rx_pdu *node_rx,
 		break;
 #endif /* CONFIG_BT_CTLR_DF_SCAN_CTE_RX */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	case NODE_RX_TYPE_SYNC_ISO:
 		le_big_sync_established(pdu_data, node_rx, buf);
 		break;
@@ -8771,7 +8774,7 @@ static void encode_control(struct node_rx_pdu *node_rx,
 		le_adv_ext_terminate(pdu_data, node_rx, buf);
 		break;
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	case NODE_RX_TYPE_BIG_COMPLETE:
 		le_big_complete(pdu_data, node_rx, buf);
 		break;
@@ -9278,7 +9281,7 @@ uint8_t hci_get_class(struct node_rx_pdu *node_rx)
 #if defined(CONFIG_BT_BROADCASTER)
 		case NODE_RX_TYPE_EXT_ADV_TERMINATE:
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 		case NODE_RX_TYPE_BIG_COMPLETE:
 		case NODE_RX_TYPE_BIG_TERMINATE:
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
@@ -9303,7 +9306,7 @@ uint8_t hci_get_class(struct node_rx_pdu *node_rx)
 		case NODE_RX_TYPE_SYNC_IQ_SAMPLE_REPORT:
 #endif /* CONFIG_BT_CTLR_DF_SCAN_CTE_RX */
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 		case NODE_RX_TYPE_SYNC_ISO:
 		case NODE_RX_TYPE_SYNC_ISO_LOST:
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */

@@ -63,7 +63,7 @@ uint8_t ll_chm_update(uint8_t const *const chm)
 	(void)ull_adv_iso_chm_update();
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 
-#if defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	(void)ull_adv_iso_gis_chm_update();
 #endif /* CONFIG_BT_CTLR_GIS_ISO */
 

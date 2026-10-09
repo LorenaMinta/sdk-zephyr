@@ -60,7 +60,7 @@ uint8_t ll_configure_data_path(uint8_t data_path_dir, uint8_t data_path_id,
 	ARG_UNUSED(vs_config_len);
 	ARG_UNUSED(vs_config);
 
-	if ((!IS_ENABLED(CONFIG_BT_CTLR_SYNC_ISO) && !IS_ENABLED(CONFIG_BT_CTLR_GIS_ISO)) ||
+	if ((!IS_ENABLED(CONFIG_BT_CTLR_SYNC_ISO) && !IS_ENABLED(CONFIG_BT_CTLR_SYNC_GIS_ISO)) ||
 	    (data_path_dir == BT_HCI_DATAPATH_DIR_CTLR_TO_HOST)) {
 		dummy = true;
 	}

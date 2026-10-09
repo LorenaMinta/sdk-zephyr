@@ -148,7 +148,7 @@ struct lll_adv_sync {
 	uint16_t sync_lazy;
 #endif /* CONFIG_BT_TICKER_EXT_EXPIRE_INFO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	struct lll_adv_iso *iso;
 	uint8_t    volatile iso_chm_done_req;
 	uint8_t             iso_chm_done_ack;

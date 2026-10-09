@@ -58,7 +58,7 @@ LOG_MODULE_REGISTER(bt_ctlr_isoal, CONFIG_BT_CTLR_ISOAL_LOG_LEVEL);
 		(s == BT_ISO_CONT ? "CONT" : \
 			(s == BT_ISO_END ? "END" : "???"))))
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
 /* Given the minimum payload, this defines the minimum number of bytes that
  * should be  remaining in a TX PDU such that it would make inserting a new
  * segment worthwhile during the segmentation process.
@@ -1625,6 +1625,7 @@ void isoal_source_destroy(isoal_source_handle_t hdl)
 	isoal_source_deallocate(hdl);
 }
 
+__attribute__((unused))
 static bool isoal_is_time_stamp_valid(const struct isoal_source *source_ctx,
 				      const uint32_t cntr_time,
 				      const uint32_t time_stamp)
@@ -2183,6 +2184,7 @@ static isoal_status_t isoal_tx_unframed_produce(isoal_source_handle_t source_hdl
  * @param  time_offset         value of time offset to be written
  * @return                     status
  */
+__attribute__((unused))
 static isoal_status_t isoal_insert_seg_header_timeoffset(struct isoal_source *source,
 							 const bool sc,
 							 const bool cmplt,
@@ -2248,6 +2250,7 @@ static isoal_status_t isoal_insert_seg_header_timeoffset(struct isoal_source *so
  * param   add_length length to add
  * @return            status
  */
+__attribute__((unused))
 static isoal_status_t isoal_update_seg_header_cmplt_length(struct isoal_source *source,
 							   const bool cmplt,
 							   const uint8_t add_length)
@@ -2291,12 +2294,14 @@ static isoal_status_t isoal_update_seg_header_cmplt_length(struct isoal_source *
  * @param[out] time_offset    Segmentation Time offset to selected event
  * @return                The number SDUs skipped from the last
  */
+__attribute__((unused))
 static uint16_t isoal_tx_framed_find_correct_tx_event(const struct isoal_source *source_ctx,
 						      const struct isoal_sdu_tx *tx_sdu,
 						      uint64_t *payload_number,
 						      uint32_t *grp_ref_point,
 						      uint32_t *time_offset)
 {
+#if !defined(CONFIG_BT_CTLR_GIS_ISO)
 	const struct isoal_source_session *session;
 	const struct isoal_pdu_production *pp;
 	uint32_t actual_grp_ref_point;
@@ -2481,6 +2486,9 @@ static uint16_t isoal_tx_framed_find_correct_tx_event(const struct isoal_source 
 	*time_offset = time_diff;
 
 	return sdus_skipped;
+#else
+	return 0U;
+#endif /* CONFIG_BT_CTLR_GIS_ISO */
 }
 
 /**
@@ -2495,6 +2503,7 @@ static uint16_t isoal_tx_framed_find_correct_tx_event(const struct isoal_source 
 static isoal_status_t isoal_tx_framed_produce(isoal_source_handle_t source_hdl,
 						const struct isoal_sdu_tx *tx_sdu)
 {
+#if !defined(CONFIG_BT_CTLR_GIS_ISO)
 	struct isoal_source_session *session;
 	struct isoal_pdu_production *pp;
 	isoal_sdu_len_t packet_available;
@@ -2714,6 +2723,9 @@ static isoal_status_t isoal_tx_framed_produce(isoal_source_handle_t source_hdl,
 	pp->initialized = 1U;
 
 	return err;
+#else
+	return ISOAL_STATUS_ERR_UNSPECIFIED;
+#endif
 }
 
 /**
