@@ -1085,7 +1085,7 @@ static void lll_flush(void *param)
 	sync_iso = HDR_LLL2ULL(param);
 	handle = sync_iso_handle_get(sync_iso);
 
-	lll_sync_iso_flush(handle, param);
+	lll_sync_iso_gis_flush(handle, param);
 
 	if (sync_iso->flush_sem) {
 		k_sem_give(sync_iso->flush_sem);

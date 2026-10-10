@@ -51,7 +51,7 @@ if(CONFIG_BT_BROADCASTER)
     ll_sw/ull_adv_iso.c
     )
   zephyr_library_sources_ifdef(
-    CONFIG_BT_CTLR_GIS_ISO
+    CONFIG_BT_CTLR_ADV_GIS_ISO
     ll_sw/ull_adv_iso_gis.c
     )
 endif()
@@ -73,7 +73,7 @@ if(CONFIG_BT_OBSERVER)
     ll_sw/ull_sync_iso.c
     )
   zephyr_library_sources_ifdef(
-    CONFIG_BT_CTLR_GIS_ISO
+    CONFIG_BT_CTLR_SYNC_GIS_ISO
     ll_sw/ull_sync_iso_gis.c
     )
 endif()
