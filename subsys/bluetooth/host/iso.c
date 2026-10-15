@@ -3122,7 +3122,11 @@ static void store_bis_broadcaster_info(const struct bt_hci_evt_le_big_complete *
 	broadcaster_info->max_pdu = sys_le16_to_cpu(evt->max_pdu);
 
 	info->can_send = true;
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+	info->can_recv = true;
+#else
 	info->can_recv = false;
+#endif
 }
 
 void hci_le_big_complete(struct net_buf *buf)
@@ -3312,7 +3316,11 @@ static void store_bis_sync_receiver_info(const struct bt_hci_evt_le_big_sync_est
 	receiver_info->pto = info->iso_interval * evt->pto;
 	receiver_info->max_pdu = sys_le16_to_cpu(evt->max_pdu);
 
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+	info->can_send = true;
+#else
 	info->can_send = false;
+#endif
 	info->can_recv = true;
 }
 

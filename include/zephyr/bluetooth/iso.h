@@ -191,8 +191,6 @@ enum bt_iso_chan_type {
 	BT_ISO_CHAN_TYPE_PERIPHERAL,    /**< Connected as peripheral */
 	BT_ISO_CHAN_TYPE_BROADCASTER,	/**< Isochronous broadcaster */
 	BT_ISO_CHAN_TYPE_SYNC_RECEIVER,	/**< Synchronized receiver */
-	BT_ISO_CHAN_TYPE_GIS_BROADCASTER,	/**< GIS broadcaster */
-	BT_ISO_CHAN_TYPE_GIS_RECEIVER	/**< GIS receiver */
 };
 
 /** @brief ISO Channel structure. */

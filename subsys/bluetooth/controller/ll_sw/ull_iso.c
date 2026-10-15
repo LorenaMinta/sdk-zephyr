@@ -336,7 +336,11 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 #endif
 		lll_iso = &adv_iso->lll;
 
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+		role = (path_dir == BT_HCI_DATAPATH_DIR_HOST_TO_CTLR) ? ISOAL_ROLE_BROADCAST_SOURCE : ISOAL_ROLE_BROADCAST_SINK;
+#else
 		role = ISOAL_ROLE_BROADCAST_SOURCE;
+#endif
 		iso_interval = lll_iso->iso_interval;
 		sdu_interval = lll_iso->sdu_interval;
 		burst_number = lll_iso->bn;
@@ -373,7 +377,11 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 #endif
 		lll_iso = &sync_iso->lll;
 
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+		role = (path_dir == BT_HCI_DATAPATH_DIR_HOST_TO_CTLR) ? ISOAL_ROLE_BROADCAST_SOURCE : ISOAL_ROLE_BROADCAST_SINK;
+#else
 		role = ISOAL_ROLE_BROADCAST_SINK;
+#endif
 		iso_interval = lll_iso->iso_interval;
 		sdu_interval = lll_iso->sdu_interval;
 		burst_number = lll_iso->bn;
@@ -425,7 +433,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 
 #if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	} else if ((path_dir == BT_HCI_DATAPATH_DIR_CTLR_TO_HOST) &&
-		   (cis || sync_stream)) {
+		   (cis || sync_stream || adv_stream)) {
 		isoal_sink_handle_t sink_handle;
 		isoal_status_t err;
 
@@ -478,6 +486,10 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 				sync_stream->dp = dp;
 			}
 
+			if (adv_stream) {
+				adv_stream->dp = dp;
+			}
+
 			dp->sink_hdl = sink_handle;
 			isoal_sink_enable(sink_handle);
 		} else {
@@ -491,7 +503,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 
 #if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
 	} else if ((path_dir == BT_HCI_DATAPATH_DIR_HOST_TO_CTLR) &&
-		   (cis || adv_stream)) {
+		   (cis || sync_stream || adv_stream)) {
 		isoal_source_handle_t source_handle;
 		isoal_status_t err;
 
@@ -535,6 +547,10 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 
 			if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) || IS_ENABLED(CONFIG_BT_CTLR_ADV_GIS_ISO)) && adv_stream != NULL) {
 				adv_stream->dp = dp;
+			}
+
+			if ((IS_ENABLED(CONFIG_BT_CTLR_SYNC_GIS_ISO)) && sync_stream != NULL) {
+				sync_stream->dp = dp;
 			}
 
 			dp->source_hdl = source_handle;
