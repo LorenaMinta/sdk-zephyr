@@ -31,6 +31,7 @@
 #include "lll_chan.h"
 #include "lll_sync_iso.h"
 #include "lll_sync_iso_gis.h"
+#include "lll_iso_tx.h"
 
 #include "lll_internal.h"
 #include "lll_tim_internal.h"
@@ -212,6 +213,7 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 	uint16_t stream_handle;
 	uint16_t event_counter;
 	uint8_t access_addr[4];
+	uint64_t payload_count;
 	uint16_t data_chan_id;
 	uint8_t data_chan_use;
 	uint32_t remainder_us;
@@ -234,6 +236,7 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 
 	/* Update BIS packet counter to next value */
 	lll->payload_count += (lll->latency_prepare * lll->bn);
+	payload_count = lll->payload_count - lll->bn;
 
 	/* Reset accumulated latencies */
 	lll->latency_prepare = 0U;
@@ -335,11 +338,52 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 	/* Start setting up of Radio h/w */
 	radio_reset();
 
+	/* Set TX Power for feedback channel */
+	radio_tx_power_set(RADIO_TXP_DEFAULT);
+
 	phy = lll->phy;
 	radio_phy_set(phy, PHY_FLAGS_S8);
 	radio_aa_set(access_addr);
 	radio_crc_configure(PDU_CRC_POLYNOMIAL, sys_get_le24(crc_init));
 	lll_chan_set(data_chan_use);
+
+	memq_link_t *link = NULL;
+	struct node_tx_iso *tx;
+	uint16_t handle;
+	uint8_t bis_idx;
+
+	bis_idx = lll->num_bis;
+	while (bis_idx--) {
+		stream_handle = lll->stream_handle[bis_idx];
+		handle = LL_BIS_SYNC_HANDLE_FROM_IDX(stream_handle);
+		stream = ull_sync_iso_gis_lll_stream_get(stream_handle);
+		LL_ASSERT(stream);
+
+		do {
+			link = memq_peek(stream->memq_tx.head,
+					 stream->memq_tx.tail, (void **)&tx);
+			if (link) {
+				if (tx->payload_count < payload_count) {
+					memq_dequeue(stream->memq_tx.tail,
+						     &stream->memq_tx.head,
+						     NULL);
+
+					tx->next = link;
+					ull_iso_lll_ack_enqueue(handle, tx);
+				} else if (tx->payload_count >=
+					   lll->payload_count) {
+					link = NULL;
+				} else {
+					if (tx->payload_count !=
+					    payload_count) {
+						link = NULL;
+					}
+
+					break;
+				}
+			}
+		} while (link);
+	}
 
 	/* By design, there shall always be one free node rx available for
 	 * setting up radio for new PDU reception.
@@ -350,10 +394,8 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 	/* Encryption */
 	if (IS_ENABLED(CONFIG_BT_CTLR_BROADCAST_ISO_ENC) &&
 	    lll->enc) {
-		uint64_t payload_count;
 		uint8_t pkt_flags;
 
-		payload_count = lll->payload_count - lll->bn;
 		lll->ccm_rx.counter = payload_count;
 
 		(void)memcpy(lll->ccm_rx.iv, lll->giv, 4U);
@@ -600,6 +642,7 @@ static void isr_rx_estab(void *param)
 
 static void isr_rx(void *param)
 {
+	struct pdu_bis *tx_pdu = NULL;
 	struct lll_sync_iso_stream *stream;
 	struct lll_sync_iso *lll;
 	uint8_t access_addr[4];
@@ -810,11 +853,58 @@ isr_rx_find_subevent:
 
 	/* Find the next (bn_curr)th subevent to receive PDU */
 	while (lll->bn_curr < lll->bn) {
+		uint64_t payload_count;
 		uint32_t payload_offset;
 		uint16_t payload_index;
 
 		/* Next burst number to check for reception required */
 		lll->bn_curr++;
+
+		if (lll->bis_curr > CONFIG_BT_GIS_ISO_RX_CHAN_COUNT) {
+			if (lll->bis_curr != CONFIG_BT_GIS_ISO_FB_CHAN) {
+				skipped++;
+
+				continue;
+			}
+			
+			struct node_tx_iso *tx;
+			memq_link_t *link;
+
+			stream = ull_sync_iso_gis_lll_stream_get(lll->stream_handle[stream_curr]);
+			
+			payload_index = lll->bn_curr - 1U;
+			payload_count = lll->payload_count + payload_index - lll->bn;
+
+			link = memq_peek_n(stream->memq_tx.head, stream->memq_tx.tail,
+			   					payload_index, (void **)&tx);
+			if (!link || (tx->payload_count != payload_count)) {
+				payload_index = 0U;
+				do {
+					link = memq_peek_n(stream->memq_tx.head,
+							   stream->memq_tx.tail,
+							   payload_index, (void **)&tx);
+					payload_index++;
+				} while (link &&
+					 (tx->payload_count < payload_count));
+			}
+			if (!link || (tx->payload_count != payload_count)) {
+				/* No TX data available, skip
+				 * subevent.
+				 */
+				skipped++;
+				
+				continue;
+			} else {
+				tx_pdu = (void *)tx->pdu;
+
+				/* Send the Tx
+				 * PDU of bis_curr.
+				 */
+				bis = lll->bis_curr;
+
+				goto isr_rx_next_subevent;
+			}
+		}
 
 		/* Check payload buffer overflow.
 		 * Ensure we are not having offset values over 255 in payload_count_max, used to
@@ -849,6 +939,7 @@ isr_rx_find_subevent:
 	/* Find the next repetition (irc_curr)th subevent to receive PDU */
 	if (lll->irc_curr < lll->irc) {
 		if (!new_burst) {
+			uint64_t payload_count;
 			uint32_t payload_offset;
 			uint16_t payload_index;
 
@@ -857,6 +948,56 @@ isr_rx_find_subevent:
 			 */
 			lll->bn_curr = 1U;
 			lll->irc_curr++;
+
+			if (lll->bis_curr > CONFIG_BT_GIS_ISO_RX_CHAN_COUNT) {
+				if (lll->bis_curr != CONFIG_BT_GIS_ISO_FB_CHAN) {
+					skipped++;
+					new_burst = 1U;
+					goto isr_rx_find_subevent;
+				}
+
+				struct node_tx_iso *tx;
+				memq_link_t *link;
+
+				stream = ull_sync_iso_gis_lll_stream_get(lll->stream_handle[stream_curr]);
+				
+				payload_index = lll->bn_curr - 1U;
+				payload_count = lll->payload_count + payload_index - lll->bn;
+
+				link = memq_peek_n(stream->memq_tx.head, stream->memq_tx.tail,
+				   					payload_index, (void **)&tx);
+				if (!link || (tx->payload_count != payload_count)) {
+					payload_index = 0U;
+					do {
+						link = memq_peek_n(stream->memq_tx.head,
+								   stream->memq_tx.tail,
+								   payload_index, (void **)&tx);
+						payload_index++;
+					} while (link &&
+						 (tx->payload_count < payload_count));
+				}
+				if (!link || (tx->payload_count != payload_count)) {
+					/* No TX data available, skip
+					 * subevent.
+					 */
+					skipped++;
+					new_burst = 1U;
+
+					/* Find the missing TX PDU
+					 * of bis_curr
+					 */
+					goto isr_rx_find_subevent;
+				} else {
+					tx_pdu = (void *)tx->pdu;
+
+					/* Send the Tx
+					 * PDU of bis_curr.
+					 */
+					bis = lll->bis_curr;
+
+					goto isr_rx_next_subevent;
+				}
+			}
 
 			/* Check payload buffer overflow */
 			/* FIXME: Typically we should not have high latency, but do have an
@@ -926,7 +1067,7 @@ isr_rx_find_subevent:
 	}
 
 	/* Next BIS */
-	if (lll->bis_curr < lll->num_bis) {
+	if (lll->bis_curr < CONFIG_BT_GIS_ISO_RX_CHAN_COUNT) {
 		/* Next selected stream */
 		if ((lll->stream_curr + 1U) < lll->stream_count) {
 			struct lll_sync_iso_stream *sync_stream;
@@ -1004,6 +1145,103 @@ isr_rx_find_subevent:
 			lll->bis_curr = lll->num_bis;
 		}
 	}
+	else if (lll->bis_curr < lll->num_bis) {
+		if ((lll->stream_curr + 1U) < lll->stream_count) {
+			struct lll_sync_iso_stream *sync_stream;
+			uint16_t stream_handle;
+			struct node_tx_iso *tx;
+			memq_link_t *link;
+
+			stream_curr = ++lll->stream_curr;
+			stream_handle = lll->stream_handle[stream_curr];
+			sync_stream = ull_sync_iso_gis_lll_stream_get(stream_handle);
+			if (sync_stream->bis_index <= lll->num_bis) {
+				uint64_t payload_count;
+				uint16_t payload_index;
+				uint8_t bis_idx_new;
+
+				lll->bis_curr = sync_stream->bis_index;
+				lll->bn_curr = 1U;
+				lll->irc_curr = 1U;
+				lll->ptc_curr = 0U;
+
+				/* new BIS index */
+				bis_idx_new = lll->bis_curr - 1U;
+
+				/* Check if it is the selected Feedback channel
+				 */
+				if (lll->bis_curr != CONFIG_BT_GIS_ISO_FB_CHAN) {
+					skipped = ((bis_idx_new - bis_idx + 1U) *
+						   ((lll->bn * lll->irc) +
+						    lll->ptc));
+
+					lll->ptc_curr = lll->ptc;
+					lll->irc_curr = lll->irc;
+					lll->bn_curr = lll->bn;
+
+					/* BIS index */
+					bis_idx = lll->bis_curr - 1U;
+
+					/* Find the missing (bn_curr)th Rx PDU
+					 * of bis_curr
+					 */
+					goto isr_rx_find_subevent;
+				}
+
+				stream = ull_sync_iso_gis_lll_stream_get(lll->stream_handle[stream_curr]);
+
+				payload_index = lll->bn_curr - 1U;
+				payload_count = lll->payload_count + payload_index - lll->bn;
+
+				link = memq_peek_n(stream->memq_tx.head, stream->memq_tx.tail,
+				   					payload_index, (void **)&tx);
+				if (!link || (tx->payload_count != payload_count)) {
+					payload_index = 0U;
+					do {
+						link = memq_peek_n(stream->memq_tx.head,
+								   stream->memq_tx.tail,
+								   payload_index, (void **)&tx);
+						payload_index++;
+					} while (link &&
+						 (tx->payload_count < payload_count));
+				}
+				if (!link || (tx->payload_count != payload_count)) {
+					/* No TX data for bn = 1 available, skip
+					 * subevent.
+					 */
+					skipped = ((bis_idx_new - bis_idx) *
+						   ((lll->bn * lll->irc) +
+						    lll->ptc)) + 1U;
+
+					/* BIS index */
+					bis_idx = lll->bis_curr - 1U;
+
+					/* Find the missing (bn_curr)th TX PDU
+					 * of bis_curr
+					 */
+					goto isr_rx_find_subevent;
+				} else {
+					tx_pdu = (void *)tx->pdu;
+
+					/* bn = 1 TX PDU available */
+					skipped = (bis_idx_new - bis_idx) *
+						  ((lll->bn * lll->irc) +
+						   lll->ptc);
+
+					/* Send the (irc_curr)th bn = 1 Tx
+					 * PDU of bis_curr.
+					 */
+					bis = lll->bis_curr;
+
+					goto isr_rx_next_subevent;
+				}
+			} else {
+				lll->bis_curr = lll->num_bis;
+			}
+		} else {
+			lll->bis_curr = lll->num_bis;
+		}
+	}
 #endif /* CONFIG_BT_CTLR_SYNC_ISO_SEQUENTIAL */
 
 	goto isr_rx_ctrl;
@@ -1011,7 +1249,7 @@ isr_rx_find_subevent:
 #if defined(CONFIG_BT_CTLR_SYNC_ISO_INTERLEAVED)
 isr_rx_interleaved:
 	/* Next BIS */
-	if (lll->bis_curr < lll->num_bis) {
+	if (lll->bis_curr < CONFIG_BT_GIS_ISO_RX_CHAN_COUNT) {
 		/* Next selected stream */
 		if ((lll->stream_curr + 1U) < lll->stream_count) {
 			struct lll_sync_iso_stream *sync_stream;
@@ -1064,6 +1302,59 @@ isr_rx_interleaved:
 			lll->bis_curr = lll->num_bis;
 		}
 	}
+	else if (lll->bis_curr < lll->num_bis) {
+		/* Next selected stream */
+		if ((lll->stream_curr + 1U) < lll->stream_count) {
+			struct node_tx_iso *tx;
+			memq_link_t *link;
+
+			stream_curr = ++lll->stream_curr;
+			stream = ull_sync_iso_gis_lll_stream_get(lll->stream_handle[stream_curr]);
+			if (stream->bis_index <= lll->num_bis) {
+				uint64_t payload_count;
+				uint8_t payload_index;
+
+				lll->bis_curr = stream->bis_index;
+
+				payload_index = lll->bn_curr - 1U;
+				payload_count = lll->payload_count + payload_index - lll->bn;
+
+				link = memq_peek_n(stream->memq_tx.head, stream->memq_tx.tail,
+				   					payload_index, (void **)&tx);
+				if (!link || (tx->payload_count != payload_count)) {
+					payload_index = 0U;
+					do {
+						link = memq_peek_n(stream->memq_tx.head,
+								   stream->memq_tx.tail,
+								   payload_index, (void **)&tx);
+						payload_index++;
+					} while (link &&
+						 (tx->payload_count < payload_count));
+				}
+				if (!link || (tx->payload_count != payload_count)) {
+					const uint16_t event_counter =
+						(lll->payload_count / lll->bn) - 1U;
+
+					next_chan_calc_int(lll, event_counter);
+
+					goto isr_rx_interleaved;
+				} else {
+					tx_pdu = (void *)tx->pdu;
+
+					/* Send the (irc_curr)th bn = 1 Tx
+					 * PDU of bis_curr.
+					 */
+					bis = lll->bis_curr;
+
+					goto isr_rx_next_subevent;
+				}
+			} else {
+				lll->bis_curr = lll->num_bis;
+			}
+		} else {
+			lll->bis_curr = lll->num_bis;
+		}
+	}
 
 	if (lll->bis_curr >= lll->num_bis) {
 		struct lll_sync_iso_stream *sync_stream;
@@ -1082,10 +1373,60 @@ isr_rx_interleaved:
 	}
 
 	if (lll->bn_curr < lll->bn) {
+		uint64_t payload_count;
 		uint8_t payload_offset;
 		uint8_t payload_index;
 
 		lll->bn_curr++;
+
+		if (lll->bis_curr > CONFIG_BT_GIS_ISO_RX_CHAN_COUNT) {
+			if (lll->bis_curr != CONFIG_BT_GIS_ISO_FB_CHAN) {
+				const uint16_t event_counter =
+					(lll->payload_count / lll->bn) - 1U;
+
+				next_chan_calc_int(lll, event_counter);
+
+				goto isr_rx_interleaved;
+			}
+			
+			struct node_tx_iso *tx;
+			memq_link_t *link;
+
+			stream = ull_sync_iso_gis_lll_stream_get(lll->stream_handle[stream_curr]);
+			
+			payload_index = lll->bn_curr - 1U;
+			payload_count = lll->payload_count + payload_index - lll->bn;
+
+			link = memq_peek_n(stream->memq_tx.head, stream->memq_tx.tail,
+			   					payload_index, (void **)&tx);
+			if (!link || (tx->payload_count != payload_count)) {
+				payload_index = 0U;
+				do {
+					link = memq_peek_n(stream->memq_tx.head,
+							   stream->memq_tx.tail,
+							   payload_index, (void **)&tx);
+					payload_index++;
+				} while (link &&
+					 (tx->payload_count < payload_count));
+			}
+			if (!link || (tx->payload_count != payload_count)) {
+				const uint16_t event_counter =
+					(lll->payload_count / lll->bn) - 1U;
+
+				next_chan_calc_int(lll, event_counter);
+
+				goto isr_rx_interleaved;
+			} else {
+				tx_pdu = (void *)tx->pdu;
+
+				/* Send the Tx
+				 * PDU of bis_curr.
+				 */
+				bis = lll->bis_curr;
+
+				goto isr_rx_next_subevent;
+			}
+		}
 
 		/* Check payload buffer overflow */
 		payload_offset = (lll->bn_curr - 1U);
@@ -1120,10 +1461,60 @@ isr_rx_interleaved:
 	}
 
 	if (lll->irc_curr < lll->irc) {
+		uint64_t payload_count;
 		uint8_t payload_index;
 
 		lll->irc_curr++;
 		lll->bn_curr = 1U;
+
+		if (lll->bis_curr > CONFIG_BT_GIS_ISO_RX_CHAN_COUNT) {
+			if (lll->bis_curr != CONFIG_BT_GIS_ISO_FB_CHAN) {
+				const uint16_t event_counter =
+					(lll->payload_count / lll->bn) - 1U;
+
+				next_chan_calc_int(lll, event_counter);
+
+				goto isr_rx_interleaved;
+			}
+			
+			struct node_tx_iso *tx;
+			memq_link_t *link;
+
+			stream = ull_sync_iso_gis_lll_stream_get(lll->stream_handle[stream_curr]);
+			
+			payload_index = lll->bn_curr - 1U;
+			payload_count = lll->payload_count + payload_index - lll->bn;
+
+			link = memq_peek_n(stream->memq_tx.head, stream->memq_tx.tail,
+			   					payload_index, (void **)&tx);
+			if (!link || (tx->payload_count != payload_count)) {
+				payload_index = 0U;
+				do {
+					link = memq_peek_n(stream->memq_tx.head,
+							   stream->memq_tx.tail,
+							   payload_index, (void **)&tx);
+					payload_index++;
+				} while (link &&
+					 (tx->payload_count < payload_count));
+			}
+			if (!link || (tx->payload_count != payload_count)) {
+				const uint16_t event_counter =
+					(lll->payload_count / lll->bn) - 1U;
+
+				next_chan_calc_int(lll, event_counter);
+
+				goto isr_rx_interleaved;
+			} else {
+				tx_pdu = (void *)tx->pdu;
+
+				/* Send the Tx
+				 * PDU of bis_curr.
+				 */
+				bis = lll->bis_curr;
+
+				goto isr_rx_next_subevent;
+			}
+		}
 
 		/* Find the index of the (irc_curr)th bn = 1 Rx PDU
 		 * buffer.
@@ -1260,7 +1651,7 @@ isr_rx_next_subevent:
 
 	lll_chan_set(data_chan_use);
 
-	/* Encryption */
+	/* TODO: Encryption not available for Feedback channel */
 	if (IS_ENABLED(CONFIG_BT_CTLR_BROADCAST_ISO_ENC) &&
 	    lll->enc) {
 		uint64_t payload_count;
@@ -1294,24 +1685,30 @@ isr_rx_next_subevent:
 							  pdu));
 
 	} else {
-		struct pdu_bis *pdu;
-
-		if (bis) {
-			struct node_rx_pdu *node_rx;
-
-			/* By design, there shall always be one free node rx
-			 * available for setting up radio for new PDU reception.
-			 */
-			node_rx = ull_iso_pdu_rx_alloc_peek(1U);
-			LL_ASSERT(node_rx);
-
-			pdu = (void *)node_rx->pdu;
-		} else {
-			/* Use the dedicated Control PDU buffer */
-			pdu = radio_pkt_big_ctrl_get();
+		if (bis == CONFIG_BT_GIS_ISO_FB_CHAN)
+		{
+			radio_pkt_tx_set(tx_pdu);
 		}
+		else {
+			struct pdu_bis *pdu;
 
-		radio_pkt_rx_set(pdu);
+			if (bis) {
+				struct node_rx_pdu *node_rx;
+
+				/* By design, there shall always be one free node rx
+				 * available for setting up radio for new PDU reception.
+				 */
+				node_rx = ull_iso_pdu_rx_alloc_peek(1U);
+				LL_ASSERT(node_rx);
+
+				pdu = (void *)node_rx->pdu;
+			} else {
+				/* Use the dedicated Control PDU buffer */
+				pdu = radio_pkt_big_ctrl_get();
+			}
+
+			radio_pkt_rx_set(pdu);
+		}
 	}
 
 	radio_switch_complete_and_disable();
@@ -1340,6 +1737,20 @@ isr_rx_next_subevent:
 		hcto = 0U;
 
 		LL_ASSERT(false);
+	}
+
+	if (bis == CONFIG_BT_GIS_ISO_FB_CHAN) {
+		/* Assume trx_cnt > 0, because Broadcast should send */
+		start_us = radio_tmr_aa_restore() + hcto;
+		start_us -= radio_rx_chain_delay_get(lll->phy, PHY_FLAGS_S8);
+		start_us -= addr_us_get(lll->phy);
+		start_us -= radio_tx_ready_delay_get(lll->phy, PHY_FLAGS_S8);
+		start_us -= radio_tx_chain_delay_get(lll->phy, PHY_FLAGS_S8);
+
+		hcto = radio_tmr_start_us(1U, start_us);
+		LL_ASSERT(hcto == (start_us + 1U));
+
+		goto isr_rx_tx_done;
 	}
 
 	if (trx_cnt) {
@@ -1408,6 +1819,7 @@ isr_rx_next_subevent:
 	/* setup absolute PDU header reception timeout */
 	radio_tmr_hcto_configure_abs(hcto);
 
+isr_rx_tx_done:
 	/* setup capture of PDU end timestamp */
 	radio_tmr_end_capture();
 

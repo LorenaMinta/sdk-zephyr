@@ -118,6 +118,8 @@ struct ll_sync_iso_set {
 	struct ull_hdr ull;
 	struct lll_sync_iso lll;
 
+	uint32_t big_ref_point;
+
 	/* Periodic Advertising Sync that contained the BIGInfo */
 	struct ll_sync_set *sync;
 

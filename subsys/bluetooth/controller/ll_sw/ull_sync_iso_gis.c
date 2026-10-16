@@ -34,6 +34,7 @@
 #include "lll_sync_iso_gis.h"
 #include "lll_conn.h"
 #include "lll_conn_iso.h"
+#include "lll_iso_tx.h"
 
 #include "isoal.h"
 
@@ -225,6 +226,14 @@ uint8_t ll_big_gis_sync_create(uint8_t big_handle, uint16_t sync_handle,
 		stream->dp = NULL;
 		stream->test_mode = &test_mode[i];
 		memset(stream->test_mode, 0, sizeof(struct ll_iso_rx_test_mode));
+		
+		if (!stream->link_tx_free) {
+			stream->link_tx_free = &stream->link_tx;
+		}
+		memq_init(stream->link_tx_free, &stream->memq_tx.head,
+			  &stream->memq_tx.tail);
+		stream->link_tx_free = NULL;
+
 		lll->stream_handle[i] = sync_iso_stream_handle_get(stream);
 	}
 
@@ -381,6 +390,7 @@ struct lll_sync_iso_stream *ull_sync_iso_gis_lll_stream_get(uint16_t handle)
 void ull_sync_iso_gis_stream_release(struct ll_sync_iso_set *sync_iso)
 {
 	struct lll_sync_iso *lll;
+	memq_link_t *link;
 
 	lll = &sync_iso->lll;
 	while (lll->stream_count--) {
@@ -390,7 +400,12 @@ void ull_sync_iso_gis_stream_release(struct ll_sync_iso_set *sync_iso)
 
 		stream_handle = lll->stream_handle[lll->stream_count];
 		stream = ull_sync_iso_gis_stream_get(stream_handle);
-		LL_ASSERT(stream);
+		
+		LL_ASSERT(!stream->link_tx_free);
+		link = memq_deinit(&stream->memq_tx.head,
+				   &stream->memq_tx.tail);
+		LL_ASSERT(link);
+		stream->link_tx_free = link;
 
 		dp = stream->dp;
 		if (dp) {
@@ -979,6 +994,7 @@ static void ticker_cb(uint32_t ticks_at_expire, uint32_t ticks_drift,
 	static struct lll_prepare_param p;
 	struct ll_sync_iso_set *sync_iso;
 	struct lll_sync_iso *lll;
+	uint32_t remainder_us;
 	uint32_t ret;
 	uint8_t ref;
 
@@ -1012,6 +1028,14 @@ static void ticker_cb(uint32_t ticks_at_expire, uint32_t ticks_drift,
 	ret = mayfly_enqueue(TICKER_USER_ID_ULL_HIGH, TICKER_USER_ID_LLL, 0U,
 			     &mfy_lll_prepare);
 	LL_ASSERT(!ret);
+
+	/* Calculate the BIG reference point of current BIG event */
+	remainder_us = remainder;
+	hal_ticker_remove_jitter(&ticks_at_expire, &remainder_us);
+	ticks_at_expire &= HAL_TICKER_CNTR_MASK;
+	sync_iso->big_ref_point = isoal_get_wrapped_time_us(HAL_TICKER_TICKS_TO_US(ticks_at_expire),
+							   (remainder_us +
+							    EVENT_OVERHEAD_START_US));
 
 	DEBUG_RADIO_PREPARE_O(1);
 }
@@ -1079,7 +1103,36 @@ static void sync_iso_disable(void *param)
 static void lll_flush(void *param)
 {
 	struct ll_sync_iso_set *sync_iso;
+	struct lll_sync_iso *lll;
 	uint8_t handle;
+	uint8_t num_bis;
+
+	lll = param;
+
+	/* Flush TX */
+	num_bis = lll->num_bis;
+	while (num_bis--) {
+		struct lll_sync_iso_stream *stream;
+		struct node_tx_iso *tx;
+		uint16_t stream_handle;
+		memq_link_t *link2;
+		uint16_t handle2;
+
+		stream_handle = lll->stream_handle[num_bis];
+		handle2 = LL_BIS_SYNC_HANDLE_FROM_IDX(stream_handle);
+		stream = ull_sync_iso_gis_stream_get(stream_handle);
+
+		link2 = memq_dequeue(stream->memq_tx.tail, &stream->memq_tx.head,
+				     (void **)&tx);
+		while (link2) {
+			tx->next = link2;
+			ull_iso_lll_ack_enqueue(handle2, tx);
+
+			link2 = memq_dequeue(stream->memq_tx.tail,
+					    &stream->memq_tx.head,
+					    (void **)&tx);
+		}
+	}
 
 	/* Get reference to ULL context */
 	sync_iso = HDR_LLL2ULL(param);

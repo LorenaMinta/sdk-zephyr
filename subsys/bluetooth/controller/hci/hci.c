@@ -6287,6 +6287,94 @@ int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 		return 0;
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 
+#if defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
+	} else if (IS_SYNC_ISO_HANDLE(handle)) {
+		struct lll_sync_iso_stream *stream;
+		struct ll_sync_iso_set *sync_iso;
+		struct lll_sync_iso *lll_iso;
+		uint16_t latency_prepare;
+		uint16_t stream_handle;
+		uint64_t target_event;
+		uint8_t event_offset;
+
+		/* Get BIS stream handle and stream context */
+		stream_handle = LL_BIS_SYNC_IDX_FROM_HANDLE(handle);
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+		stream = ull_sync_iso_gis_stream_get(stream_handle);
+#else
+		stream = ull_sync_iso_stream_get(stream_handle);
+#endif
+		if (!stream || !stream->dp) {
+			LOG_ERR("Invalid BIS stream");
+			return -EINVAL;
+		}
+
+#if defined(CONFIG_BT_CTLR_GIS_ISO)
+		sync_iso = ull_sync_iso_gis_by_stream_get(stream_handle);
+#else
+		sync_iso = ull_sync_iso_by_stream_get(stream_handle);
+#endif
+		if (!sync_iso) {
+			LOG_ERR("No BIG associated with stream handle");
+			return -EINVAL;
+		}
+
+		lll_iso = &sync_iso->lll;
+
+		/* Determine the target event and the first event offset after
+		 * datapath setup.
+		 * event_offset mitigates the possibility of first SDU being
+		 * late on the datapath and avoid all subsequent SDUs being
+		 * dropped for a said SDU interval. i.e. upper layer is not
+		 * drifting, say first SDU dropped, hence subsequent SDUs all
+		 * dropped, is mitigated by offsetting the grp_ref_point.
+		 *
+		 * It is ok to do the below for every received ISO data, ISOAL
+		 * will not consider subsequent skewed target_event after the
+		 * first use of target_event value.
+		 *
+		 * In BIG implementation in LLL, payload_count corresponds to
+		 * the next BIG event, hence calculate grp_ref_point for next
+		 * BIG event by incrementing the previous elapsed big_ref_point
+		 * by one additional ISO interval.
+		 */
+		target_event = lll_iso->payload_count / lll_iso->bn;
+		latency_prepare = lll_iso->latency_prepare;
+		if (latency_prepare) {
+			/* big_ref_point has been updated, but payload_count
+			 * hasn't been updated yet - increment target_event to
+			 * compensate
+			 */
+			target_event += latency_prepare;
+		}
+		event_offset = ull_ref_get(&sync_iso->ull) ? 0U : 1U;
+
+		sdu_frag_tx.target_event = target_event + event_offset;
+		sdu_frag_tx.grp_ref_point =
+			isoal_get_wrapped_time_us(sync_iso->big_ref_point,
+						  ((event_offset + 1U) *
+						   lll_iso->iso_interval *
+						   ISO_INT_UNIT_US));
+
+		/* Start Fragmentation */
+		/* FIXME: need to ensure ISO-AL returns proper isoal_status.
+		 * Currently there are cases where ISO-AL calls LL_ASSERT.
+		 */
+		isoal_status_t isoal_status =
+			isoal_tx_sdu_fragment(stream->dp->source_hdl, &sdu_frag_tx);
+
+		if (isoal_status) {
+			if (isoal_status & ISOAL_STATUS_ERR_PDU_ALLOC) {
+				data_buf_overflow(evt, BT_OVERFLOW_LINK_ISO);
+				return -ENOBUFS;
+			}
+
+			return -EINVAL;
+		}
+
+		return 0;
+#endif /* CONFIG_BT_CTLR_SYNC_ISO */
+
 	}
 
 	return -EINVAL;
