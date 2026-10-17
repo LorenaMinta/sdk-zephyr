@@ -10,3 +10,5 @@ void lll_adv_iso_gis_create_prepare(void *param);
 void lll_adv_iso_gis_prepare(void *param);
 
 extern struct lll_adv_iso_stream *ull_adv_iso_gis_lll_stream_get(uint16_t handle);
+extern void ll_iso_rx_put(memq_link_t *link, void *rx);
+extern void ll_rx_sched(void);

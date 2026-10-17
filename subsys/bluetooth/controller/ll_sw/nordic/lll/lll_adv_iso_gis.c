@@ -36,6 +36,7 @@
 
 #include "lll_internal.h"
 #include "lll_adv_iso_internal.h"
+#include "lll_tim_internal.h"
 #include "lll_prof_internal.h"
 
 #include "ll_feat.h"
@@ -65,6 +66,9 @@ static void next_chan_calc_int(struct lll_adv_iso *lll, uint16_t event_counter);
 #endif /* CONFIG_BT_CTLR_ADV_ISO_INTERLEAVED */
 static void isr_done_create(void *param);
 static void isr_done_term(void *param);
+static void isr_rx_iso_data_valid(const struct lll_adv_iso *const lll,
+				  uint16_t handle, struct node_rx_pdu *node_rx);
+static uint16_t payload_index_get(const struct lll_adv_iso *lll);
 
 int lll_adv_iso_gis_init(void)
 {
@@ -255,6 +259,12 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 	radio_crc_configure(PDU_CRC_POLYNOMIAL, sys_get_le24(crc_init));
 	lll_chan_set(data_chan_use);
 
+	/* By design, there shall always be one free node rx available for
+	 * setting up radio for new PDU reception.
+	 */
+	struct node_rx_pdu *node_rx = ull_iso_pdu_rx_alloc_peek(1U);
+	LL_ASSERT(node_rx);
+
 	/* Get ISO data PDU */
 #if !TEST_WITH_DUMMY_PDU
 	struct lll_adv_iso_stream *stream;
@@ -403,6 +413,10 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 		radio_tmr_tifs_set(iss_us);
 		radio_switch_complete_and_b2b_tx(lll->phy, lll->phy_flags,
 						 lll->phy, lll->phy_flags);
+		
+		/* Catch anchor point for receive channels */
+		radio_tmr_ready_save(0);
+		radio_tmr_aa_capture();
 	}
 
 	ticks_at_event = p->ticks_at_expire;
@@ -498,7 +512,9 @@ static void isr_tx_common(void *param,
 	uint16_t data_chan_id;
 	uint8_t crc_init[3];
 	uint8_t is_ctrl;
+	uint32_t hcto;
 	uint8_t bis;
+	uint8_t nse;
 
 #if defined(HAL_RADIO_GPIO_HAVE_PA_PIN)
 	uint16_t pa_iss_us = 0U;
@@ -512,6 +528,86 @@ static void isr_tx_common(void *param,
 
 	/* Sequential or Interleaved BIS subevents decision */
 	const bool is_sequential_packing = (lll->bis_spacing >= (lll->sub_interval * lll->nse));
+
+	/* Save the AA captured for the first anchor point. Then AA is not 0 anymore. */
+	if (!radio_tmr_ready_restore()) {
+		radio_tmr_ready_save(radio_tmr_ready_get());
+	}
+
+	if (lll->bis_curr > CONFIG_BT_GIS_ISO_TX_CHAN_COUNT) {
+		/* Read radio status and events */
+		uint8_t trx_done = radio_is_done();
+		if (!trx_done) {
+			/* Clear radio rx status and events */
+			lll_isr_rx_status_reset();
+
+			goto isr_rx_done;
+		}
+
+		uint8_t crc_ok = radio_crc_is_valid();
+
+		/* Clear radio rx status and events */
+		lll_isr_rx_status_reset();
+
+		/* Current stream */
+		uint8_t stream_curr = lll->bis_curr;
+
+		/* Check CRC and generate ISO Data PDU */
+		if (crc_ok) {
+			struct lll_adv_iso_stream *adv_stream;
+			struct node_rx_pdu *node_rx;
+			uint32_t payload_offset;
+			uint16_t payload_index;
+			uint16_t stream_handle;
+			struct pdu_bis *rx_pdu;
+
+			/* Check if there are 2 free rx buffers, one will be
+			 * consumed to receive the current PDU, and the other
+			 * is to ensure a PDU can be setup for the radio DMA to
+			 * receive in the next sub_interval/iso_interval.
+			 */
+			node_rx = ull_iso_pdu_rx_alloc_peek(2U);
+			if (!node_rx) {
+				goto isr_rx_done;
+			}
+
+			rx_pdu = (void *)node_rx->pdu;
+
+			/* Check payload buffer overflow.
+			 * Ensure we are not having offset values over 255 in payload_count_max, used to
+			 * allocate the buffers.
+			 */
+			payload_offset = (lll->latency_event * lll->bn) + payload_index_get(lll);
+			if (payload_offset >= lll->payload_count_max) {
+				goto isr_rx_done;
+			}
+
+			/* Calculate the payload index in the sliding window */
+			payload_index = lll->payload_tail + payload_offset;
+			if (payload_index >= lll->payload_count_max) {
+				payload_index -= lll->payload_count_max;
+			}
+
+			/* Get reference to stream context */
+			stream_handle = lll->stream_handle[stream_curr];
+			adv_stream = ull_adv_iso_gis_lll_stream_get(stream_handle);
+
+			/* Store the received PDU if selected stream and not already
+			 * received (say in previous event as pre-transmitted PDU.
+			 */
+			if (rx_pdu->len && !lll->payload[stream_curr][payload_index]) {
+				uint16_t handle;
+
+				ull_iso_pdu_rx_alloc();
+
+				handle = LL_BIS_ADV_HANDLE_FROM_IDX(stream_handle);
+				isr_rx_iso_data_valid(lll, handle, node_rx);
+
+				lll->payload[stream_curr][payload_index] = node_rx;
+			}
+		}
+	}
+isr_rx_done:
 
 	is_ctrl = 0U;
 	if (false) {
@@ -702,7 +798,7 @@ static void isr_tx_common(void *param,
 	radio_crc_configure(PDU_CRC_POLYNOMIAL, sys_get_le24(crc_init));
 
 	/* Get ISO data PDU, not control subevent */
-	if (!pdu) {
+	if (!pdu && (bis <= CONFIG_BT_GIS_ISO_TX_CHAN_COUNT)) {
 		uint16_t payload_index;
 
 		if (lll->ptc_curr) {
@@ -796,7 +892,13 @@ static void isr_tx_common(void *param,
 
 		data_chan_use = lll->next_chan_use;
 	}
-	pdu->rfu = 0U;
+	if (bis > CONFIG_BT_GIS_ISO_TX_CHAN_COUNT)
+	{
+		data_chan_use = lll->next_chan_use;
+	}
+	else {
+		pdu->rfu = 0U;
+	}
 
 	if (!bis) {
 		const uint16_t event_counter = payload_count / lll->bn;
@@ -812,7 +914,10 @@ static void isr_tx_common(void *param,
 	lll_chan_set(data_chan_use);
 
 	/* Encryption */
-	if (IS_ENABLED(CONFIG_BT_CTLR_BROADCAST_ISO_ENC) &&
+	if (bis > CONFIG_BT_GIS_ISO_TX_CHAN_COUNT) {
+		/* Nothing to do */
+	}
+	else if (IS_ENABLED(CONFIG_BT_CTLR_BROADCAST_ISO_ENC) &&
 	    pdu->len && lll->enc) {
 		lll->ccm_tx.counter = payload_count;
 
@@ -843,10 +948,44 @@ static void isr_tx_common(void *param,
 					    pkt_flags);
 		}
 
-		radio_switch_complete_and_b2b_tx_disable();
+		/* Radio was disabled, because of RX in between no B2B TX */
+		radio_switch_complete_and_disable();
+
+		/* PDU Header Complete TimeOut, calculate the absolute timeout in
+		 * microseconds by when a PDU header is to be received for each
+		 * subevent.
+		 */
+		if (IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO_SEQUENTIAL) &&
+		    is_sequential_packing) {
+			nse = ((lll->bis_curr - 1U) *
+			       ((lll->bn * lll->irc) + lll->ptc)) +
+			      ((lll->irc_curr - 1U) * lll->bn) + (lll->bn_curr - 1U) +
+			      lll->ptc_curr;
+			hcto = lll->sub_interval * nse;
+		} else if (IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO_INTERLEAVED) &&
+			   !is_sequential_packing) {
+			nse = (lll->bis_curr - 1U) +
+			       ((((lll->irc_curr - 1U) * lll->bn) +
+				 (lll->bn_curr - 1U) + lll->ptc_curr) *
+				lll->num_bis);
+			hcto = lll->bis_spacing * nse;
+		} else {
+			nse = 0U;
+			hcto = 0U;
+
+			LL_ASSERT(false);
+		}
+
+		uint32_t start_us;
+
+		start_us = radio_tmr_ready_restore() + hcto;
+		start_us -= radio_tx_ready_delay_get(lll->phy, PHY_FLAGS_S8);
+
+		hcto = radio_tmr_start_us(1U, start_us);
+		LL_ASSERT(hcto == (start_us + 1U));
 
 		radio_isr_set(isr_done_term, lll);
-	} else {
+	} else if (bis <= CONFIG_BT_GIS_ISO_TX_CHAN_COUNT){
 		uint16_t iss_us;
 
 		/* Calculate next subevent start based on previous PDU length */
@@ -855,8 +994,15 @@ static void isr_tx_common(void *param,
 				     lll->phy, lll->phy_flags);
 
 		radio_tmr_tifs_set(iss_us);
-		radio_switch_complete_and_b2b_tx(lll->phy, lll->phy_flags,
-						 lll->phy, lll->phy_flags);
+		if ((lll->bn_curr == lll->bn) &&
+		    (lll->irc_curr == lll->irc) &&
+		    (lll->ptc_curr == lll->ptc) &&
+		    (lll->bis_curr == CONFIG_BT_GIS_ISO_TX_CHAN_COUNT)) {
+			radio_switch_complete_and_b2b_tx_disable();
+		} else {
+			radio_switch_complete_and_b2b_tx(lll->phy, lll->phy_flags,
+											 lll->phy, lll->phy_flags);
+		}
 
 		radio_isr_set(isr_tx, lll);
 
@@ -866,6 +1012,101 @@ static void isr_tx_common(void *param,
 		 */
 		pa_iss_us = iss_us;
 #endif /* HAL_RADIO_GPIO_HAVE_PA_PIN */
+	} else {
+		/* Setup receive process */
+		struct pdu_bis *rx_pdu;
+
+		struct node_rx_pdu *node_rx;
+
+		/* By design, there shall always be one free node rx
+		 * available for setting up radio for new PDU reception.
+		 */
+		node_rx = ull_iso_pdu_rx_alloc_peek(1U);
+		LL_ASSERT(node_rx);
+
+		rx_pdu = (void *)node_rx->pdu;
+
+		radio_pkt_rx_set(rx_pdu);
+
+		radio_switch_complete_and_disable();
+
+		/* PDU Header Complete TimeOut, calculate the absolute timeout in
+		 * microseconds by when a PDU header is to be received for each
+		 * subevent.
+		 */
+		if (IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO_SEQUENTIAL) &&
+		    is_sequential_packing) {
+			nse = ((lll->bis_curr - 1U) *
+			       ((lll->bn * lll->irc) + lll->ptc)) +
+			      ((lll->irc_curr - 1U) * lll->bn) + (lll->bn_curr - 1U) +
+			      lll->ptc_curr;
+			hcto = lll->sub_interval * nse;
+		} else if (IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO_INTERLEAVED) &&
+			   !is_sequential_packing) {
+			nse = (lll->bis_curr - 1U) +
+			       ((((lll->irc_curr - 1U) * lll->bn) +
+				 (lll->bn_curr - 1U) + lll->ptc_curr) *
+				lll->num_bis);
+			hcto = lll->bis_spacing * nse;
+		} else {
+			nse = 0U;
+			hcto = 0U;
+
+			LL_ASSERT(false);
+		}
+
+		/* Setup radio packet timer header complete timeout for
+		 * subsequent subevent PDU.
+		 */
+		uint32_t jitter_max_us;
+		uint32_t overhead_us;
+		uint32_t jitter_us;
+		uint32_t start_us;
+
+		/* Calculate the radio start with consideration of the drift
+		 * based on the access address capture timestamp.
+		 * Listen early considering +/- 2 us active clock jitter, i.e.
+		 * listen early by 4 us.
+		 */
+		hcto += radio_tmr_ready_restore();
+		hcto += radio_tx_chain_delay_get(lll->phy, PHY_FLAGS_S8);
+		hcto -= radio_rx_chain_delay_get(lll->phy, PHY_FLAGS_S8);
+		hcto -= radio_rx_ready_delay_get(lll->phy, PHY_FLAGS_S8);
+		overhead_us = radio_rx_chain_delay_get(lll->phy, PHY_FLAGS_S8);
+		overhead_us += addr_us_get(lll->phy);
+		overhead_us += radio_rx_ready_delay_get(lll->phy, PHY_FLAGS_S8);
+		overhead_us += (EVENT_CLOCK_JITTER_US << 1);
+		jitter_max_us = (EVENT_IFS_US - overhead_us) >> 1;
+		jitter_max_us -= RANGE_DELAY_US + HAL_RADIO_TMR_START_DELAY_US;
+		jitter_us = (EVENT_CLOCK_JITTER_US << 1) * nse;
+		if (jitter_us > jitter_max_us) {
+			jitter_us = jitter_max_us;
+		}
+		hcto -= jitter_us;
+
+		start_us = hcto;
+		hcto = radio_tmr_start_us(0U, start_us);
+		//LL_ASSERT(hcto == (start_us + 1U)); ??
+
+		/* Add 8 us * subevents so far, as radio was setup to listen
+		 * 4 us early and subevents could have a 4 us drift each until
+		 * the current subevent we are listening.
+		 */
+		hcto += (jitter_us << 1);
+		hcto += RANGE_DELAY_US + HAL_RADIO_TMR_START_DELAY_US;
+
+		/* header complete timeout to consider the radio ready delay, chain
+		 * delay and access address duration.
+		 */
+		hcto += radio_rx_ready_delay_get(lll->phy, PHY_FLAGS_S8);
+		hcto += addr_us_get(lll->phy);
+		hcto += radio_rx_chain_delay_get(lll->phy, PHY_FLAGS_S8);
+
+		/* setup absolute PDU header reception timeout */
+		radio_tmr_hcto_configure_abs(hcto);
+
+		/* setup capture of PDU end timestamp */
+		radio_tmr_end_capture();
 	}
 
 	/* assert if radio packet ptr is not set and radio started tx */
@@ -1027,12 +1268,50 @@ static void isr_done_create(void *param)
 
 static void isr_done_term(void *param)
 {
+	struct node_rx_pdu *node_rx;
 	struct lll_adv_iso *lll;
+	uint16_t payload_index;
 	uint16_t elapsed_event;
+
+	/* Enqueue PDUs to ULL */
+	node_rx = NULL;
+
+	/* Dequeue sliding window */
+	lll = param;
+	payload_index = lll->payload_tail;
+
+	for (uint8_t bis_idx = CONFIG_BT_GIS_ISO_TX_CHAN_COUNT; bis_idx < lll->num_bis; bis_idx++) {
+		struct lll_adv_iso_stream *stream;
+		uint16_t stream_handle;
+		uint8_t payload_tail;
+
+		stream_handle = lll->stream_handle[bis_idx];
+		stream = ull_adv_iso_gis_lll_stream_get(stream_handle);
+
+		payload_tail = lll->payload_tail;
+		for (uint8_t bn = 0U; bn < lll->bn; bn++) {
+			if (lll->payload[bis_idx][payload_tail]) {
+				node_rx = lll->payload[bis_idx][payload_tail];
+				lll->payload[bis_idx][payload_tail] = NULL;
+
+				iso_rx_put(node_rx->hdr.link, node_rx);
+			}
+
+			payload_index = payload_tail + 1U;
+			if (payload_index >= lll->payload_count_max) {
+				payload_index = 0U;
+			}
+			payload_tail = payload_index;
+		}
+	}
+	lll->payload_tail = payload_index;
+
+	if (node_rx) {
+		iso_rx_sched();
+	}
 
 	lll_isr_status_reset();
 
-	lll = param;
 	LL_ASSERT(lll->ctrl_expire);
 
 	elapsed_event = lll->latency_event + 1U;
@@ -1088,4 +1367,58 @@ static void isr_done_term(void *param)
 	}
 
 	lll_isr_cleanup(param);
+}
+
+static void isr_rx_iso_data_valid(const struct lll_adv_iso *const lll,
+				  uint16_t handle, struct node_rx_pdu *node_rx)
+{
+	struct node_rx_iso_meta *iso_meta;
+
+	node_rx->hdr.type = NODE_RX_TYPE_ISO_PDU;
+	node_rx->hdr.handle = handle;
+
+	iso_meta = &node_rx->rx_iso_meta;
+	iso_meta->payload_number = lll->payload_count + payload_index_get(lll);
+	/* Decrement BN as payload_count was pre-incremented */
+	iso_meta->payload_number -= lll->bn;
+
+	iso_meta->timestamp = HAL_TICKER_TICKS_TO_US(radio_tmr_start_get()) +
+			      radio_tmr_ready_restore() +
+			      (DIV_ROUND_UP(lll->ptc_curr, lll->bn) *
+			       lll->pto * lll->iso_interval *
+			       PERIODIC_INT_UNIT_US);
+
+	iso_meta->timestamp %=
+		HAL_TICKER_TICKS_TO_US_64BIT(BIT64(HAL_TICKER_CNTR_MSBIT + 1U));
+
+	iso_meta->status = 0U;
+}
+
+static uint16_t payload_index_get(const struct lll_adv_iso *lll)
+{
+	uint16_t payload_index;
+
+	if (lll->ptc_curr) {
+		/* FIXME: Do not remember why ptc is 4 bits, it should be 5 bits as ptc is a
+		 *        running buffer offset related to nse.
+		 *        Fix ptc and ptc_curr definitions, until then there is an assertion
+		 *        check when ptc is calculated in ptc_calc function.
+		 */
+		uint8_t ptx_idx = lll->ptc_curr - 1U; /* max. nse 5 bits */
+		uint8_t ptx_payload_idx;
+		uint16_t ptx_group_mult;
+		uint8_t ptx_group_idx;
+
+		/* Calculate group index and multiplier for deriving
+		 * pre-transmission payload index.
+		 */
+		ptx_group_idx = ptx_idx / lll->bn; /* 5 bits */
+		ptx_payload_idx = ptx_idx - ptx_group_idx * lll->bn; /* 8 bits */
+		ptx_group_mult = (ptx_group_idx + 1U) * lll->pto; /* 9 bits */
+		payload_index = ptx_payload_idx + ptx_group_mult * lll->bn; /* 13 bits */
+	} else {
+		payload_index  = lll->bn_curr - 1U; /* 3 bits */
+	}
+
+	return payload_index;
 }

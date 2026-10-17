@@ -106,6 +106,11 @@ struct lll_adv_iso {
 
 	uint16_t stream_handle[BT_CTLR_ADV_ISO_STREAM_MAX];
 
+	struct node_rx_pdu *payload[BT_CTLR_ADV_ISO_STREAM_MAX]
+				   [PDU_BIG_PAYLOAD_COUNT_MAX];
+	uint8_t payload_count_max;
+	uint8_t payload_tail;
+
 #if defined(HAL_RADIO_GPIO_HAVE_PA_PIN)
 	uint16_t pa_iss_us;
 #endif /* HAL_RADIO_GPIO_HAVE_PA_PIN */
