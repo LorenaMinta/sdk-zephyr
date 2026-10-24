@@ -536,7 +536,7 @@ static MFIFO_DEFINE(ll_pdu_rx_free, sizeof(void *), LL_PDU_RX_CNT);
 static void *mark_update;
 #endif /* CONFIG_BT_CONN */
 
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 #if defined(CONFIG_BT_CONN)
 #define BT_CTLR_TX_BUFFERS (CONFIG_BT_BUF_ACL_TX_COUNT + LLCP_TX_CTRL_BUF_COUNT)
 #else
@@ -570,7 +570,7 @@ static void rx_demux(void *param);
 #if defined(CONFIG_BT_CTLR_LOW_LAT_ULL)
 static void rx_demux_yield(void);
 #endif /* CONFIG_BT_CTLR_LOW_LAT_ULL */
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 static uint8_t tx_cmplt_get(uint16_t *handle, uint8_t *first, uint8_t last);
 static inline void rx_demux_conn_tx_ack(uint8_t ack_last, uint16_t handle,
 					memq_link_t *link,
@@ -693,7 +693,7 @@ int ll_init(struct k_sem *sem_rx)
 	if (err) {
 		return err;
 	}
-#endif /* CONFIG_BT_CTLR_GIS_ISO */
+#endif /* CONFIG_BT_CTLR_SYNC_GIS_ISO */
 #endif /* CONFIG_BT_CTLR_SYNC_PERIODIC */
 
 #if defined(CONFIG_BT_CONN)
@@ -1001,7 +1001,7 @@ ll_rx_get_again:
 
 	link = memq_peek(memq_ll_rx.head, memq_ll_rx.tail, (void **)&rx);
 	if (link) {
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 		cmplt = tx_cmplt_get(handle, &mfifo_fifo_tx_ack.f, rx->hdr.ack_last);
 		if (!cmplt) {
 			uint8_t f, cmplt_prev, cmplt_curr;
@@ -1066,7 +1066,7 @@ ll_rx_get_again:
 				/* Update Channel Map in BIGInfo present in
 				 * Periodic Advertising PDU.
 				 */
-#if defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 				ull_adv_iso_gis_chm_complete(rx);
 #else
 				ull_adv_iso_chm_complete(rx);
@@ -1080,7 +1080,7 @@ ll_rx_get_again:
 
 			*node_rx = rx;
 
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 		}
 	} else {
 		cmplt = tx_cmplt_get(handle, &mfifo_fifo_tx_ack.f,
@@ -1471,7 +1471,7 @@ void ll_rx_mem_release(void **node_rx)
 		case NODE_RX_TYPE_BIG_TERMINATE:
 		{
 			struct ll_adv_iso_set *adv_iso = rx_free->rx_ftr.param;
-#if defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 			ull_adv_iso_gis_stream_release(adv_iso);
 #else
 			ull_adv_iso_stream_release(adv_iso);
@@ -1688,7 +1688,7 @@ void ll_rx_mem_release(void **node_rx)
 		{
 			struct ll_sync_iso_set *sync_iso =
 				(void *)rx_free->rx_ftr.param;
-#if defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 			ull_sync_iso_gis_stream_release(sync_iso);
 #else
 			ull_sync_iso_stream_release(sync_iso);
@@ -1788,7 +1788,7 @@ void ll_rx_release(void *node_rx)
 
 void ll_rx_put(memq_link_t *link, void *rx)
 {
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	struct node_rx_hdr *rx_hdr = rx;
 
 	/* Serialize Tx ack with Rx enqueue by storing reference to
@@ -1835,7 +1835,7 @@ void *ll_pdu_rx_alloc(void)
 }
 #endif /* CONFIG_BT_CONN */
 
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 void ll_tx_ack_put(uint16_t handle, struct node_tx *node_tx)
 {
 	struct lll_tx *tx;
@@ -2668,7 +2668,7 @@ static void rx_demux_yield(void)
 }
 #endif /* CONFIG_BT_CTLR_LOW_LAT_ULL */
 
-#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CONN) || defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 static uint8_t tx_cmplt_get(uint16_t *handle, uint8_t *first, uint8_t last)
 {
 	struct lll_tx *tx;
@@ -2689,7 +2689,8 @@ static uint8_t tx_cmplt_get(uint16_t *handle, uint8_t *first, uint8_t last)
 		if (false) {
 #if defined(CONFIG_BT_CTLR_ADV_ISO) || \
 	defined(CONFIG_BT_CTLR_CONN_ISO) || \
-	defined(CONFIG_BT_CTLR_GIS_ISO)
+	defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || \
+	defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 		} else if (IS_CIS_HANDLE(tx->handle) ||
 			   IS_ADV_ISO_HANDLE(tx->handle)) {
 			struct node_tx_iso *tx_node;
@@ -2789,7 +2790,8 @@ static uint8_t tx_cmplt_get(uint16_t *handle, uint8_t *first, uint8_t last)
 
 #if defined(CONFIG_BT_CTLR_ADV_ISO) || \
 	defined(CONFIG_BT_CTLR_CONN_ISO) || \
-	defined(CONFIG_BT_CTLR_GIS_ISO)
+	defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || \
+	defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 next_ack:
 #endif /* CONFIG_BT_CTLR_ADV_ISO || CONFIG_BT_CTLR_CONN_ISO */
 
@@ -3058,7 +3060,7 @@ static inline void rx_demux_event_done(memq_link_t *link,
 
 #if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	case EVENT_DONE_EXTRA_TYPE_ADV_ISO_COMPLETE:
-#if defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 		ull_adv_iso_gis_done_complete(done);
 #else
 		ull_adv_iso_done_complete(done);
@@ -3066,7 +3068,7 @@ static inline void rx_demux_event_done(memq_link_t *link,
 		break;
 
 	case EVENT_DONE_EXTRA_TYPE_ADV_ISO_TERMINATE:
-#if defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 		ull_adv_iso_gis_done_terminate(done);
 #else
 		ull_adv_iso_done_terminate(done);
@@ -3094,7 +3096,7 @@ static inline void rx_demux_event_done(memq_link_t *link,
 
 #if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	case EVENT_DONE_EXTRA_TYPE_SYNC_ISO_ESTAB:
-#if defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 		ull_sync_iso_gis_estab_done(done);
 #else
 		ull_sync_iso_estab_done(done);
@@ -3102,7 +3104,7 @@ static inline void rx_demux_event_done(memq_link_t *link,
 		break;
 
 	case EVENT_DONE_EXTRA_TYPE_SYNC_ISO:
-#if defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 		ull_sync_iso_gis_done(done);
 #else
 		ull_sync_iso_done(done);
@@ -3110,7 +3112,7 @@ static inline void rx_demux_event_done(memq_link_t *link,
 		break;
 
 	case EVENT_DONE_EXTRA_TYPE_SYNC_ISO_TERMINATE:
-#if defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 		ull_sync_iso_gis_done_terminate(done);
 #else
 		ull_sync_iso_done_terminate(done);

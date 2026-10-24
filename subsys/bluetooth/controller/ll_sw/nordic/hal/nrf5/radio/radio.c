@@ -717,7 +717,7 @@ void *radio_pkt_decrypt_get(void)
 #error "Undefined HAL_RADIO_PDU_LEN_MAX."
 #endif
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 /* Dedicated Rx PDU Buffer for Control PDU independent of node_rx with BIS Data
  * PDU buffer. Note this buffer will be used to store whole PDUs, not just the BIG control payload.
  */

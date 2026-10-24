@@ -58,7 +58,7 @@ LOG_MODULE_REGISTER(bt_ctlr_isoal, CONFIG_BT_CTLR_ISOAL_LOG_LEVEL);
 		(s == BT_ISO_CONT ? "CONT" : \
 			(s == BT_ISO_END ? "END" : "???"))))
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 /* Given the minimum payload, this defines the minimum number of bytes that
  * should be  remaining in a TX PDU such that it would make inserting a new
  * segment worthwhile during the segmentation process.
@@ -84,12 +84,12 @@ typedef uint8_t isoal_alloc_state_t;
 
 struct
 {
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	isoal_alloc_state_t sink_allocated[CONFIG_BT_CTLR_ISOAL_SINKS];
 	struct isoal_sink   sink_state[CONFIG_BT_CTLR_ISOAL_SINKS];
 #endif /* CONFIG_BT_CTLR_SYNC_ISO || CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 	isoal_alloc_state_t source_allocated[CONFIG_BT_CTLR_ISOAL_SOURCES];
 	struct isoal_source source_state[CONFIG_BT_CTLR_ISOAL_SOURCES];
 #endif /* CONFIG_BT_CTLR_ADV_ISO || CONFIG_BT_CTLR_CONN_ISO */
@@ -185,7 +185,7 @@ static bool isoal_get_time_diff(uint32_t time_before, uint32_t time_after, uint3
 	return valid;
 }
 
-#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 
 #define SET_RX_SDU_TIMESTAMP(_sink, _timestamp, _value)                        \
 	_timestamp = _value;                                                   \
@@ -1423,7 +1423,7 @@ isoal_status_t isoal_rx_pdu_recombine(isoal_sink_handle_t sink_hdl,
 }
 #endif /* CONFIG_BT_CTLR_SYNC_ISO || CONFIG_BT_CTLR_CONN_ISO */
 
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 /**
  * @brief Find free source from statically-sized pool and allocate it
  * @details Implemented as linear search since pool is very small
@@ -2301,7 +2301,6 @@ static uint16_t isoal_tx_framed_find_correct_tx_event(const struct isoal_source 
 						      uint32_t *grp_ref_point,
 						      uint32_t *time_offset)
 {
-#if !defined(CONFIG_BT_CTLR_GIS_ISO)
 	const struct isoal_source_session *session;
 	const struct isoal_pdu_production *pp;
 	uint32_t actual_grp_ref_point;
@@ -2486,9 +2485,6 @@ static uint16_t isoal_tx_framed_find_correct_tx_event(const struct isoal_source 
 	*time_offset = time_diff;
 
 	return sdus_skipped;
-#else
-	return 0U;
-#endif /* CONFIG_BT_CTLR_GIS_ISO */
 }
 
 /**
@@ -2503,7 +2499,6 @@ static uint16_t isoal_tx_framed_find_correct_tx_event(const struct isoal_source 
 static isoal_status_t isoal_tx_framed_produce(isoal_source_handle_t source_hdl,
 						const struct isoal_sdu_tx *tx_sdu)
 {
-#if !defined(CONFIG_BT_CTLR_GIS_ISO)
 	struct isoal_source_session *session;
 	struct isoal_pdu_production *pp;
 	isoal_sdu_len_t packet_available;
@@ -2723,9 +2718,6 @@ static isoal_status_t isoal_tx_framed_produce(isoal_source_handle_t source_hdl,
 	pp->initialized = 1U;
 
 	return err;
-#else
-	return ISOAL_STATUS_ERR_UNSPECIFIED;
-#endif
 }
 
 /**

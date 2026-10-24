@@ -272,7 +272,7 @@ config BT_ISO_BROADCASTER
 	depends on !HAS_BT_CTLR || BT_CTLR_ADV_ISO_SUPPORT
 	select BT_ISO_BROADCAST
 	select BT_ISO_TX
-	select BT_ISO_RX if BT_CTLR_GIS_ISO
+#	select BT_ISO_RX if BT_CTLR_ADV_GIS_ISO
 	select BT_BROADCASTER
 	select BT_PER_ADV
 	help
@@ -283,7 +283,7 @@ config BT_ISO_SYNC_RECEIVER
 	depends on !HAS_BT_CTLR || BT_CTLR_SYNC_ISO_SUPPORT
 	depends on BT_OBSERVER
 	select BT_ISO_BROADCAST
-	select BT_ISO_TX if BT_CTLR_GIS_ISO
+	select BT_ISO_TX if BT_CTLR_SYNC_GIS_ISO
 	select BT_ISO_RX
 	select BT_PER_ADV_SYNC
 	help

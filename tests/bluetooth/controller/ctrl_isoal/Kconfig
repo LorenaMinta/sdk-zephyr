@@ -45,7 +45,7 @@ config BT_CTLR_ISO_RX_SDU_BUFFERS
 
 config BT_CTLR_ISO_TX_SEG_PLAYLOAD_MIN
 	int "Minimum number of playload data bytes in a new segment"
-	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO || BT_CTLR_ADV_GIS_ISO || BT_CTLR_SYNC_GIS_ISO
 	default 1
 	range 1 64
 	help
@@ -54,12 +54,12 @@ config BT_CTLR_ISO_TX_SEG_PLAYLOAD_MIN
 
 config BT_CTLR_ISOAL_SN_STRICT
 	bool "Enforce Strict Tx ISO Data Sequence Number use"
-	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO || BT_CTLR_ADV_GIS_ISO || BT_CTLR_SYNC_GIS_ISO
 	default y
 
 config BT_CTLR_ISOAL_FRAMED_BIS_OFFSET_MARGIN
 	int "Margin (in microseconds) to be used in framed time offset for BIS"
-	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO || BT_CTLR_ADV_GIS_ISO || BT_CTLR_SYNC_GIS_ISO
 	default 2000
 	range 0 10000
 	help
@@ -69,7 +69,7 @@ config BT_CTLR_ISOAL_FRAMED_BIS_OFFSET_MARGIN
 
 config BT_CTLR_ISOAL_FRAMED_CIS_OFFSET_MARGIN
 	int "Margin (in microseconds) to be used in framed time offset for CIS"
-	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO
+	depends on BT_CTLR_ADV_ISO || BT_CTLR_CONN_ISO || BT_CTLR_ADV_GIS_ISO || BT_CTLR_SYNC_GIS_ISO
 	default 0
 	range 0 10000
 	help

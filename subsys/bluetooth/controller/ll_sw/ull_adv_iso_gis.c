@@ -30,6 +30,7 @@
 #include "lll/lll_adv_types.h"
 #include "lll_adv.h"
 #include "lll/lll_adv_pdu.h"
+#include "lll_adv_iso.h"
 #include "lll_adv_iso_gis.h"
 #include "lll_iso_tx.h"
 
@@ -66,6 +67,8 @@ static int init_reset(void);
 static struct ll_adv_iso_set *adv_iso_get(uint8_t handle);
 static struct stream *adv_iso_stream_acquire(void);
 static uint16_t adv_iso_stream_handle_get(struct lll_adv_iso_stream *stream);
+static uint8_t ptc_calc(const struct lll_adv_iso *lll, uint32_t event_spacing,
+			uint32_t event_spacing_max);
 static uint32_t adv_iso_time_get(const struct ll_adv_iso_set *adv_iso, bool max);
 static uint32_t adv_iso_start(struct ll_adv_iso_set *adv_iso,
 			      uint32_t iso_interval_us);
@@ -101,7 +104,7 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 			  uint8_t packing, uint8_t framing, uint8_t encryption,
 			  uint8_t *bcode,
 			  uint16_t iso_interval, uint8_t nse, uint16_t max_pdu,
-			  uint8_t bn, uint8_t irc, uint8_t pto)
+			  uint8_t bn, uint8_t irc, uint8_t pto, bool test_config)
 {
 	uint8_t bi_ad[PDU_BIG_INFO_ENCRYPTED_SIZE + 2U];
 	struct lll_adv_sync *lll_adv_sync;
@@ -189,12 +192,42 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 			return BT_HCI_ERR_INVALID_PARAM;
 		}
 
-		if (max_latency > 0x0FA0) {
-			return BT_HCI_ERR_INVALID_PARAM;
-		}
+		if (test_config) {
+			if (!IN_RANGE(iso_interval, 0x0004, 0x0C80)) {
+				return BT_HCI_ERR_INVALID_PARAM;
+			}
 
-		if (rtn > 0x0F) {
-			return BT_HCI_ERR_INVALID_PARAM;
+			if (!IN_RANGE(nse, 0x01, 0x1F)) {
+				return BT_HCI_ERR_INVALID_PARAM;
+			}
+
+			if (!IN_RANGE(max_pdu, 0x01, MIN(0xFB, LL_BIS_OCTETS_TX_MAX))) {
+				return BT_HCI_ERR_INVALID_PARAM;
+			}
+
+			if (!IN_RANGE(bn, 0x01, 0x07)) {
+				return BT_HCI_ERR_INVALID_PARAM;
+			}
+
+			if (!IN_RANGE(irc, 0x01, 0x0F)) {
+				return BT_HCI_ERR_INVALID_PARAM;
+			}
+
+			if (pto > 0x0F) {
+				return BT_HCI_ERR_INVALID_PARAM;
+			}
+
+			if (pto && !(bn * irc < nse)) {
+				return BT_HCI_ERR_INVALID_PARAM;
+			}
+		} else {
+			if (max_latency > 0x0FA0) {
+				return BT_HCI_ERR_INVALID_PARAM;
+			}
+
+			if (rtn > 0x0F) {
+				return BT_HCI_ERR_INVALID_PARAM;
+			}
 		}
 	}
 
@@ -313,46 +346,55 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 			adv_iso_stream_handle_get(stream);
 	}
 
-	
-	if (framing) {
-		/* Try to allocate room for one SDU + header */
-		lll_adv_iso->max_pdu = MIN(LL_BIS_OCTETS_TX_MAX,
-					   max_sdu + PDU_ISO_SEG_HDR_SIZE +
-					    PDU_ISO_SEG_TIMEOFFSET_SIZE);
-	} else {
-		lll_adv_iso->max_pdu = MIN(LL_BIS_OCTETS_TX_MAX, max_sdu);
-	}
-
-	/* FIXME: SDU per max latency, consider how to use Pre-transmission in the
-	 *        calculations.
-	 *        Take decision based on how ptc_calc function forces the use of
-	 *        Pre-Transmission when not using test command. Refer to comments in
-	 *        ptc_calc function.
-	 */
-	sdu_per_event = MAX((max_latency * USEC_PER_MSEC / sdu_interval), 2U) -
-			1U;
-
-	/* BN (Burst Count), Mandatory BN = 1 */
-	bn = DIV_ROUND_UP(max_sdu, lll_adv_iso->max_pdu) * sdu_per_event;
-	if (bn > PDU_BIG_BN_MAX) {
-		/* Restrict each BIG event to maximum burst per BIG event */
-		lll_adv_iso->bn = PDU_BIG_BN_MAX;
-
-		/* Ceil the required burst count per SDU to next maximum burst
-		 * per BIG event.
-		 */
-		bn = DIV_ROUND_UP(bn, PDU_BIG_BN_MAX) * PDU_BIG_BN_MAX;
-	} else {
+	if (test_config) {
 		lll_adv_iso->bn = bn;
-	}
+		lll_adv_iso->iso_interval = iso_interval;
+		lll_adv_iso->irc = irc;
+		lll_adv_iso->nse = nse;
+		lll_adv_iso->max_pdu = max_pdu;
+		iso_interval_us = iso_interval * PERIODIC_INT_UNIT_US;
 
-	/* Calculate ISO interval */
-	/* iso_interval shall be at least SDU interval,
-	 * or integer multiple of SDU interval for unframed PDUs
-	 */
-	iso_interval_us = ((sdu_interval * lll_adv_iso->bn * sdu_per_event) /
-			(bn * PERIODIC_INT_UNIT_US)) * PERIODIC_INT_UNIT_US;
-	lll_adv_iso->iso_interval = iso_interval_us / PERIODIC_INT_UNIT_US;
+	} else {
+		if (framing) {
+			/* Try to allocate room for one SDU + header */
+			lll_adv_iso->max_pdu = MIN(LL_BIS_OCTETS_TX_MAX,
+						   max_sdu + PDU_ISO_SEG_HDR_SIZE +
+						    PDU_ISO_SEG_TIMEOFFSET_SIZE);
+		} else {
+			lll_adv_iso->max_pdu = MIN(LL_BIS_OCTETS_TX_MAX, max_sdu);
+		}
+
+		/* FIXME: SDU per max latency, consider how to use Pre-transmission in the
+		 *        calculations.
+		 *        Take decision based on how ptc_calc function forces the use of
+		 *        Pre-Transmission when not using test command. Refer to comments in
+		 *        ptc_calc function.
+		 */
+		sdu_per_event = MAX((max_latency * USEC_PER_MSEC / sdu_interval), 2U) -
+				1U;
+
+		/* BN (Burst Count), Mandatory BN = 1 */
+		bn = DIV_ROUND_UP(max_sdu, lll_adv_iso->max_pdu) * sdu_per_event;
+		if (bn > PDU_BIG_BN_MAX) {
+			/* Restrict each BIG event to maximum burst per BIG event */
+			lll_adv_iso->bn = PDU_BIG_BN_MAX;
+
+			/* Ceil the required burst count per SDU to next maximum burst
+			 * per BIG event.
+			 */
+			bn = DIV_ROUND_UP(bn, PDU_BIG_BN_MAX) * PDU_BIG_BN_MAX;
+		} else {
+			lll_adv_iso->bn = bn;
+		}
+
+		/* Calculate ISO interval */
+		/* iso_interval shall be at least SDU interval,
+		 * or integer multiple of SDU interval for unframed PDUs
+		 */
+		iso_interval_us = ((sdu_interval * lll_adv_iso->bn * sdu_per_event) /
+				(bn * PERIODIC_INT_UNIT_US)) * PERIODIC_INT_UNIT_US;
+		lll_adv_iso->iso_interval = iso_interval_us / PERIODIC_INT_UNIT_US;
+	}
 
 	/* Calculate max available ISO event spacing */
 	slot_overhead = HAL_TICKER_TICKS_TO_US(ticks_slot_overhead);
@@ -364,6 +406,16 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 
 	/* Negotiate event spacing */
 	do {
+		if (!test_config) {
+			/* Immediate Repetition Count (IRC), Mandatory IRC = 1 */
+			lll_adv_iso->irc = rtn + 1U;
+
+			/* Calculate NSE (No. of Sub Events), Mandatory NSE = 1,
+			 * without PTO added.
+			 */
+			lll_adv_iso->nse = lll_adv_iso->bn * lll_adv_iso->irc;
+		}
+
 		/* NOTE: Calculate sub_interval, if interleaved then it is Num_BIS x
 		 *       BIS_Spacing (by BT Spec.)
 		 *       else if sequential, then by our implementation, lets keep it
@@ -384,7 +436,7 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 		 */
 		if (event_spacing > event_spacing_max) {
 			/* Check if we can reduce RTN to meet eventing spacing */
-			if (rtn) {
+			if (!test_config && rtn) {
 				rtn--;
 			} else {
 				break;
@@ -403,10 +455,28 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 		return BT_HCI_ERR_INVALID_PARAM;
 	}
 
-	/* No Pre-Transmission possible
+	/* Decision to use requested Pre-Transmission Offset or force Pre-Transmission when
+	 * possible (Zephyr Controller decision).
 	 */
-	lll_adv_iso->ptc = 0u;
-	lll_adv_iso->pto = 0U;
+	lll_adv_iso->ptc = ptc_calc(lll_adv_iso, event_spacing, event_spacing_max);
+
+	if (test_config) {
+		lll_adv_iso->pto = pto;
+
+		if (pto && !lll_adv_iso->ptc) {
+			return BT_HCI_ERR_INVALID_PARAM;
+		}
+	} else {
+		/* Pre-Transmission Offset (PTO) */
+		if (lll_adv_iso->ptc) {
+			lll_adv_iso->pto = MAX((bn / lll_adv_iso->bn), BT_CTLR_ADV_ISO_PTO_MIN);
+		} else {
+			lll_adv_iso->pto = 0U;
+		}
+
+		/* Make room for pre-transmissions */
+		lll_adv_iso->nse += lll_adv_iso->ptc;
+	}
 
 	/* Based on packing requested, sequential or interleaved */
 	if (false) {
@@ -622,11 +692,11 @@ uint8_t ll_big_gis_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 			  0 /*max_pdu*/,
 			  0 /*bn*/,
 			  0 /*irc*/,
-			  0 /*pto*/);
+			  0 /*pto*/,
+			  false);
 }
 
-#if 0
-uint8_t ll_big_test_create(uint8_t big_handle, uint8_t adv_handle,
+uint8_t ll_big_gis_test_create(uint8_t big_handle, uint8_t adv_handle,
 			   uint8_t num_bis, uint32_t sdu_interval,
 			   uint16_t iso_interval, uint8_t nse, uint16_t max_sdu,
 			   uint16_t max_pdu, uint8_t phy, uint8_t packing,
@@ -639,7 +709,6 @@ uint8_t ll_big_test_create(uint8_t big_handle, uint8_t adv_handle,
 			  phy, packing, framing, encryption, bcode,
 			  iso_interval, nse, max_pdu, bn, irc, pto, true);
 }
-#endif
 
 uint8_t ll_big_gis_terminate(uint8_t big_handle, uint8_t reason)
 {
@@ -845,7 +914,7 @@ void ull_adv_iso_gis_chm_complete(struct node_rx_pdu *rx)
 	}
 }
 
-#if 0 && defined(CONFIG_BT_CTLR_HCI_ADV_HANDLE_MAPPING)
+#if defined(CONFIG_BT_CTLR_HCI_ADV_HANDLE_MAPPING)
 uint8_t ll_adv_iso_by_hci_handle_get(uint8_t hci_handle, uint8_t *handle)
 {
 	struct ll_adv_iso_set *adv_iso;
@@ -905,7 +974,7 @@ void ull_adv_iso_gis_offset_get(struct ll_adv_sync_set *sync)
 	LL_ASSERT(!ret);
 }
 
-#if 0 && defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
+#if defined(CONFIG_BT_TICKER_EXT_EXPIRE_INFO)
 void ull_adv_iso_lll_biginfo_fill(struct pdu_adv *pdu, struct lll_adv_sync *lll_sync)
 {
 	struct lll_adv_iso *lll_iso;
@@ -1104,6 +1173,60 @@ static struct stream *adv_iso_stream_acquire(void)
 static uint16_t adv_iso_stream_handle_get(struct lll_adv_iso_stream *stream)
 {
 	return mem_index_get(stream, stream_pool, sizeof(*stream));
+}
+
+static uint8_t ptc_calc(const struct lll_adv_iso *lll, uint32_t event_spacing,
+			uint32_t event_spacing_max)
+{
+	if (event_spacing < event_spacing_max) {
+		uint32_t ptc;
+		uint8_t nse;
+
+		/* Possible maximum Pre-transmission Subevents per BIS.
+		 * sub_interval is at least T_MSS_150 + MPT (hence a value in 8 bits or more), i.e.
+		 * the below division and the subsequent multiplication with lll->bn does not
+		 * overflow.
+		 */
+		ptc = ((event_spacing_max - event_spacing) /
+		       (lll->sub_interval * lll->bn * lll->num_bis)) *
+		      lll->bn;
+
+		/* Required NSE */
+		nse = lll->bn * lll->irc; /* 3 bits * 4 bits, total 7 bits */
+
+		/* Requested NSE is greater than Required NSE, Pre-Transmission offset has been
+		 * provided.
+		 *
+		 * NOTE: This is the case under HCI test command use to create BIG, i.e. test_config
+		 *       variable is true.
+		 */
+		if (lll->nse > nse) {
+			/* Restrict PTC to number of available subevents */
+			ptc = MIN(ptc, lll->nse - nse);
+		} else {
+			/* No PTO requested, Zephyr Controller implementation here will try using
+			 * Pre-Transmisson offset of BT_CTLR_ADV_ISO_PTO_MIN, i.e. restrict to a
+			 * maximum of BN Pre-Transmission subevents per BIS. This allows for a
+			 * better time diversity ensuring skipped or missing reception at the ISO
+			 * Sync Receiver so it can still have another chance at receiving the ISO
+			 * PDUs within the permitted maximum transport latency.
+			 *
+			 * Usecases where BAP Broadcast Audio Assistant role device has a drifting
+			 * ACL Peripheral role active in the BAP Broadcast Audio Sink device.
+			 */
+			ptc = MIN(ptc, (lll->bn * BT_CTLR_ADV_ISO_PTO_GROUP_COUNT));
+		}
+
+		/* FIXME: Do not remember why ptc is 4 bits, it should be 5 bits as ptc is a
+		 *        running buffer offset related to nse. Fix ptc and ptc_curr definitions,
+		 *        until then lets have an assert check here.
+		 */
+		LL_ASSERT(ptc <= BIT_MASK(4));
+
+		return ptc;
+	}
+
+	return 0U;
 }
 
 static uint32_t adv_iso_time_get(const struct ll_adv_iso_set *adv_iso, bool max)
