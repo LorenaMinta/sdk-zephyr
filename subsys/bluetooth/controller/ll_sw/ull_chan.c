@@ -65,7 +65,7 @@ uint8_t ll_chm_update(uint8_t const *const chm)
 
 #if defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 	(void)ull_adv_iso_gis_chm_update();
-#endif /* CONFIG_BT_CTLR_GIS_ISO */
+#endif /* CONFIG_BT_CTLR_ADV_GIS_ISO */
 
 	/* TODO: Should failure due to Channel Map Update being already in
 	 *       progress be returned to caller?

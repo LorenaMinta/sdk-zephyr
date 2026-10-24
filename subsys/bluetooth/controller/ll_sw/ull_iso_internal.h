@@ -5,7 +5,7 @@
  */
 
 /* Calculate ISO PDU buffers required considering SDU fragmentation */
-#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO) || defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 /* Internal ISO Tx SDU maximum length.
  * A length that is minimum of the resultant combination of the HCI ISO data fragments provided and
  * the user configured maximum transmit SDU length (CONFIG_BT_CTLR_ISO_TX_SDU_LEN_MAX).
@@ -26,7 +26,7 @@ BUILD_ASSERT(BT_CTLR_ISO_TX_SDU_LEN_MAX == CONFIG_BT_CTLR_ISO_TX_SDU_LEN_MAX,
  * At least one of CONFIG_BT_CTLR_ADV_ISO or CONFIG_BT_CTLR_CONN_ISO will always be enabled,
  * so if either of them is not defined, it can default to the other
  */
-#if defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 #define BT_CTLR_ISO_TX_MIN_PDU_LEN \
 	MIN(COND_CODE_1(IS_ENABLED(CONFIG_BT_CTLR_ADV_GIS_ISO), \
 			(CONFIG_BT_CTLR_ADV_ISO_PDU_LEN_MAX), \

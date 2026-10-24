@@ -31,6 +31,7 @@
 #include "lll_adv_types.h"
 #include "lll_adv.h"
 #include "lll_adv_pdu.h"
+#include "lll_adv_iso.h"
 #include "lll_adv_iso_gis.h"
 #include "lll_iso_tx.h"
 
@@ -1280,28 +1281,30 @@ static void isr_done_term(void *param)
 	lll = param;
 	payload_index = lll->payload_tail;
 
-	for (uint8_t bis_idx = CONFIG_BT_GIS_ISO_TX_CHAN_COUNT; bis_idx < lll->num_bis; bis_idx++) {
-		struct lll_adv_iso_stream *stream;
-		uint16_t stream_handle;
-		uint8_t payload_tail;
+	for (uint8_t bis_idx = 0U; bis_idx < lll->num_bis && bis_idx < BT_CTLR_ADV_ISO_STREAM_MAX; bis_idx++) {
+		if (bis_idx >= CONFIG_BT_GIS_ISO_TX_CHAN_COUNT) {
+			struct lll_adv_iso_stream *stream;
+			uint16_t stream_handle;
+			uint8_t payload_tail;
 
-		stream_handle = lll->stream_handle[bis_idx];
-		stream = ull_adv_iso_gis_lll_stream_get(stream_handle);
+			stream_handle = lll->stream_handle[bis_idx];
+			stream = ull_adv_iso_gis_lll_stream_get(stream_handle);
 
-		payload_tail = lll->payload_tail;
-		for (uint8_t bn = 0U; bn < lll->bn; bn++) {
-			if (lll->payload[bis_idx][payload_tail]) {
-				node_rx = lll->payload[bis_idx][payload_tail];
-				lll->payload[bis_idx][payload_tail] = NULL;
+			payload_tail = lll->payload_tail;
+			for (uint8_t bn = 0U; bn < lll->bn; bn++) {
+				if (lll->payload[bis_idx][payload_tail]) {
+					node_rx = lll->payload[bis_idx][payload_tail];
+					lll->payload[bis_idx][payload_tail] = NULL;
 
-				iso_rx_put(node_rx->hdr.link, node_rx);
+					iso_rx_put(node_rx->hdr.link, node_rx);
+				}
+
+				payload_index = payload_tail + 1U;
+				if (payload_index >= lll->payload_count_max) {
+					payload_index = 0U;
+				}
+				payload_tail = payload_index;
 			}
-
-			payload_index = payload_tail + 1U;
-			if (payload_index >= lll->payload_count_max) {
-				payload_index = 0U;
-			}
-			payload_tail = payload_index;
 		}
 	}
 	lll->payload_tail = payload_index;
