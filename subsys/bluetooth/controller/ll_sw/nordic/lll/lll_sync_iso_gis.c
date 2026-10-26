@@ -350,40 +350,37 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 	memq_link_t *link = NULL;
 	struct node_tx_iso *tx;
 	uint16_t handle;
-	uint8_t bis_idx;
+	uint8_t bis_idx = CONFIG_BT_GIS_ISO_FB_CHAN - 1;
+	
+	stream_handle = lll->stream_handle[bis_idx];
+	handle = LL_BIS_SYNC_HANDLE_FROM_IDX(stream_handle);
+	stream = ull_sync_iso_gis_lll_stream_get(stream_handle);
+	LL_ASSERT(stream);
 
-	bis_idx = lll->num_bis;
-	while (bis_idx--) {
-		stream_handle = lll->stream_handle[bis_idx];
-		handle = LL_BIS_SYNC_HANDLE_FROM_IDX(stream_handle);
-		stream = ull_sync_iso_gis_lll_stream_get(stream_handle);
-		LL_ASSERT(stream);
+	do {
+		link = memq_peek(stream->memq_tx.head,
+				 stream->memq_tx.tail, (void **)&tx);
+		if (link) {
+			if (tx->payload_count < payload_count) {
+				memq_dequeue(stream->memq_tx.tail,
+					     &stream->memq_tx.head,
+					     NULL);
 
-		do {
-			link = memq_peek(stream->memq_tx.head,
-					 stream->memq_tx.tail, (void **)&tx);
-			if (link) {
-				if (tx->payload_count < payload_count) {
-					memq_dequeue(stream->memq_tx.tail,
-						     &stream->memq_tx.head,
-						     NULL);
-
-					tx->next = link;
-					ull_iso_lll_ack_enqueue(handle, tx);
-				} else if (tx->payload_count >=
-					   lll->payload_count) {
+				tx->next = link;
+				ull_iso_lll_ack_enqueue(handle, tx);
+			} else if (tx->payload_count >=
+				   lll->payload_count) {
+				link = NULL;
+			} else {
+				if (tx->payload_count !=
+				    payload_count) {
 					link = NULL;
-				} else {
-					if (tx->payload_count !=
-					    payload_count) {
-						link = NULL;
-					}
-
-					break;
 				}
+
+				break;
 			}
-		} while (link);
-	}
+		}
+	} while (link);
 
 	/* By design, there shall always be one free node rx available for
 	 * setting up radio for new PDU reception.

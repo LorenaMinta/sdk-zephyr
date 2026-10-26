@@ -2692,7 +2692,8 @@ static uint8_t tx_cmplt_get(uint16_t *handle, uint8_t *first, uint8_t last)
 	defined(CONFIG_BT_CTLR_ADV_GIS_ISO) || \
 	defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 		} else if (IS_CIS_HANDLE(tx->handle) ||
-			   IS_ADV_ISO_HANDLE(tx->handle)) {
+			   IS_ADV_ISO_HANDLE(tx->handle) ||
+			   IS_SYNC_ISO_HANDLE(tx->handle)) {
 			struct node_tx_iso *tx_node;
 			uint8_t sdu_fragments;
 

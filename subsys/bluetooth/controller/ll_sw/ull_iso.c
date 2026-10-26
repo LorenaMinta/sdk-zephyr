@@ -336,7 +336,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 #endif
 		lll_iso = &adv_iso->lll;
 
-#if defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
 		role = (path_dir == BT_HCI_DATAPATH_DIR_HOST_TO_CTLR) ? ISOAL_ROLE_BROADCAST_SOURCE : ISOAL_ROLE_BROADCAST_SINK;
 #else
 		role = ISOAL_ROLE_BROADCAST_SOURCE;
@@ -377,7 +377,7 @@ uint8_t ll_setup_iso_path(uint16_t handle, uint8_t path_dir, uint8_t path_id,
 #endif
 		lll_iso = &sync_iso->lll;
 
-#if defined(CONFIG_BT_CTLR_GIS_ISO)
+#if defined(CONFIG_BT_CTLR_SYNC_GIS_ISO)
 		role = (path_dir == BT_HCI_DATAPATH_DIR_HOST_TO_CTLR) ? ISOAL_ROLE_BROADCAST_SOURCE : ISOAL_ROLE_BROADCAST_SINK;
 #else
 		role = ISOAL_ROLE_BROADCAST_SINK;
@@ -1509,6 +1509,15 @@ int ll_iso_tx_mem_enqueue(uint16_t handle, void *node_tx, void *link)
 #endif
 		memq_enqueue(link, node_tx, &stream->memq_tx.tail);
 
+	} else if (IS_ENABLED(CONFIG_BT_CTLR_SYNC_GIS_ISO) &&
+		   IS_SYNC_ISO_HANDLE(handle)) {
+		struct lll_sync_iso_stream *stream;
+		uint16_t stream_handle;
+
+		stream_handle = LL_BIS_SYNC_IDX_FROM_HANDLE(handle);
+		stream = ull_sync_iso_gis_stream_get(stream_handle);
+		memq_enqueue(link, node_tx, &stream->memq_tx.tail);
+
 	} else {
 		return -EINVAL;
 	}
@@ -1569,6 +1578,16 @@ void ull_iso_lll_ack_enqueue(uint16_t handle, struct node_tx_iso *node_tx)
 #endif /* CONFIG_BT_CTLR_ISO_VENDOR_DATA_PATH */
 		}
 	} else if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_ISO) || IS_ENABLED(CONFIG_BT_CTLR_ADV_GIS_ISO)) && IS_ADV_ISO_HANDLE(handle)) {
+		/* Process as TX ack. TODO: Can be unified with CIS and use
+		 * ISOAL.
+		 */
+		/* FIXME: ll_tx_ack_put is not LLL callable as it is
+		 * used by ACL connections in ULL context to dispatch
+		 * ack.
+		 */
+		ll_tx_ack_put(handle, (void *)node_tx);
+		ll_rx_sched();
+	} else if (IS_ENABLED(CONFIG_BT_CTLR_SYNC_GIS_ISO) && IS_SYNC_ISO_HANDLE(handle)) {
 		/* Process as TX ack. TODO: Can be unified with CIS and use
 		 * ISOAL.
 		 */
