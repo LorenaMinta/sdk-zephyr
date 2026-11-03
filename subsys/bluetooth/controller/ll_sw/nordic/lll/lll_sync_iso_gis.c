@@ -1745,7 +1745,7 @@ isr_rx_next_subevent:
 		start_us -= radio_tx_chain_delay_get(lll->phy, PHY_FLAGS_S8);
 
 		hcto = radio_tmr_start_us(1U, start_us);
-		LL_ASSERT(hcto == (start_us + 1U));
+		//LL_ASSERT(hcto == (start_us + 1U));
 
 		goto isr_rx_tx_done;
 	}

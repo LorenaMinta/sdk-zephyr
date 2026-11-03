@@ -506,6 +506,7 @@ static void isr_tx_common(void *param,
 			  radio_isr_cb_t isr_done)
 {
 	struct pdu_bis *pdu = NULL;
+	struct node_rx_pdu *node_rx;
 	uint8_t data_chan_use = 0;
 	struct lll_adv_iso *lll;
 	uint8_t access_addr[4];
@@ -551,12 +552,12 @@ static void isr_tx_common(void *param,
 		lll_isr_rx_status_reset();
 
 		/* Current stream */
-		uint8_t stream_curr = lll->bis_curr;
+		uint8_t stream_curr = lll->bis_curr - 1U;
 
 		/* Check CRC and generate ISO Data PDU */
 		if (crc_ok) {
 			struct lll_adv_iso_stream *adv_stream;
-			struct node_rx_pdu *node_rx;
+			struct node_rx_pdu *node_rx_recv;
 			uint32_t payload_offset;
 			uint16_t payload_index;
 			uint16_t stream_handle;
@@ -567,12 +568,12 @@ static void isr_tx_common(void *param,
 			 * is to ensure a PDU can be setup for the radio DMA to
 			 * receive in the next sub_interval/iso_interval.
 			 */
-			node_rx = ull_iso_pdu_rx_alloc_peek(2U);
-			if (!node_rx) {
+			node_rx_recv = ull_iso_pdu_rx_alloc_peek(2U);
+			if (!node_rx_recv) {
 				goto isr_rx_done;
 			}
 
-			rx_pdu = (void *)node_rx->pdu;
+			rx_pdu = (void *)node_rx_recv->pdu;
 
 			/* Check payload buffer overflow.
 			 * Ensure we are not having offset values over 255 in payload_count_max, used to
@@ -602,9 +603,9 @@ static void isr_tx_common(void *param,
 				ull_iso_pdu_rx_alloc();
 
 				handle = LL_BIS_ADV_HANDLE_FROM_IDX(stream_handle);
-				isr_rx_iso_data_valid(lll, handle, node_rx);
+				isr_rx_iso_data_valid(lll, handle, node_rx_recv);
 
-				lll->payload[stream_curr][payload_index] = node_rx;
+				lll->payload[stream_curr][payload_index] = node_rx_recv;
 			}
 		}
 	}
@@ -776,6 +777,42 @@ isr_rx_done:
 
 		if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
 			lll_prof_send();
+		}
+
+		/* Enqueue PDUs to ULL */
+		node_rx = NULL;
+
+		/* Dequeue sliding window */
+		uint16_t payload_index = lll->payload_tail;
+
+		for (uint8_t bis_idx = 0U; bis_idx < lll->num_bis && bis_idx < BT_CTLR_ADV_ISO_STREAM_MAX; bis_idx++) {
+			if (bis_idx >= CONFIG_BT_GIS_ISO_TX_CHAN_COUNT) {
+				uint8_t payload_tail;
+
+				stream_handle = lll->stream_handle[bis_idx];
+				stream = ull_adv_iso_gis_lll_stream_get(stream_handle);
+
+				payload_tail = lll->payload_tail;
+				for (uint8_t bn = 0U; bn < lll->bn; bn++) {
+					if (lll->payload[bis_idx][payload_tail]) {
+						node_rx = lll->payload[bis_idx][payload_tail];
+						lll->payload[bis_idx][payload_tail] = NULL;
+
+						iso_rx_put(node_rx->hdr.link, node_rx);
+					}
+
+					payload_index = payload_tail + 1U;
+					if (payload_index >= lll->payload_count_max) {
+						payload_index = 0U;
+					}
+					payload_tail = payload_index;
+				}
+			}
+		}
+		lll->payload_tail = payload_index;
+
+		if (node_rx) {
+			iso_rx_sched();
 		}
 
 		return;
@@ -1016,8 +1053,6 @@ isr_rx_done:
 	} else {
 		/* Setup receive process */
 		struct pdu_bis *rx_pdu;
-
-		struct node_rx_pdu *node_rx;
 
 		/* By design, there shall always be one free node rx
 		 * available for setting up radio for new PDU reception.

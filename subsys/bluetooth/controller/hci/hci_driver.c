@@ -45,17 +45,22 @@
 
 #include "ll_sw/lll.h"
 #include "lll/lll_df_types.h"
+#include "lll/lll_adv_types.h"
 #include "ll_sw/lll_sync_iso.h"
 #include "ll_sw/lll_sync_iso_gis.h"
+#include "ll_sw/lll_adv_iso_gis.h"
 #include "ll_sw/lll_conn.h"
 #include "ll_sw/lll_conn_iso.h"
 #include "ll_sw/isoal.h"
 
 #include "ll_sw/ull_iso_types.h"
 #include "ll_sw/ull_conn_iso_types.h"
+#include "ll_sw/lll_adv.h"
+#include "ll_sw/ull_adv_types.h"
 
 #include "ll_sw/ull_iso_internal.h"
 #include "ll_sw/ull_sync_iso_internal.h"
+#include "ll_sw/ull_adv_internal.h"
 #include "ll_sw/ull_conn_internal.h"
 #include "ll_sw/ull_conn_iso_internal.h"
 
@@ -621,6 +626,31 @@ static inline struct net_buf *encode_node(struct node_rx_pdu *node_rx,
 					  err == ISOAL_STATUS_ERR_SDU_ALLOC);
 			}
 #endif /* CONFIG_BT_CTLR_SYNC_ISO */
+
+#if defined(CONFIG_BT_CTLR_ADV_GIS_ISO)
+		} else if (IS_ADV_ISO_HANDLE(node_rx->hdr.handle)) {
+			const struct lll_adv_iso_stream *stream;
+			struct isoal_pdu_rx isoal_rx;
+			uint16_t stream_handle;
+			isoal_status_t err;
+
+			stream_handle = LL_BIS_ADV_IDX_FROM_HANDLE(node_rx->hdr.handle);
+
+			stream = ull_adv_iso_gis_stream_get(stream_handle);
+
+			/* Check validity of the data path sink. FIXME: A channel disconnect race
+			 * may cause ISO data pending without valid data path.
+			 */
+			if (stream && stream->dp &&
+			    (stream->dp->path_id == BT_HCI_DATAPATH_ID_HCI)) {
+				isoal_rx.meta = &node_rx->rx_iso_meta;
+				isoal_rx.pdu = (void *)node_rx->pdu;
+				err = isoal_rx_pdu_recombine(stream->dp->sink_hdl, &isoal_rx);
+
+				LL_ASSERT(err == ISOAL_STATUS_OK ||
+					  err == ISOAL_STATUS_ERR_SDU_ALLOC);
+			}
+#endif /* CONFIG_BT_CTLR_ADV_ISO */
 
 		} else {
 			LL_ASSERT(0);

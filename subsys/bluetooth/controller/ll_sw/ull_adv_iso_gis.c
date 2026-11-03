@@ -526,6 +526,15 @@ static uint8_t big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bi
 	/* TODO: framing support */
 	lll_adv_iso->framing = framing;
 
+	/* Initialize payload pointers */
+	lll_adv_iso->payload_count_max = PDU_BIG_PAYLOAD_COUNT_MAX;
+	lll_adv_iso->payload_tail = 0U;
+	for (int i = 0; i < CONFIG_BT_CTLR_ADV_ISO_STREAM_MAX; i++) {
+		for (int j = 0; j < lll_adv_iso->payload_count_max; j++) {
+			lll_adv_iso->payload[i][j] = NULL;
+		}
+	}
+
 	/* Allocate next PDU */
 	err = ull_adv_sync_pdu_alloc(adv, ULL_ADV_PDU_EXTRA_DATA_ALLOC_IF_EXIST,
 				     &pdu_prev, &pdu, NULL, NULL, &ter_idx);
