@@ -1632,7 +1632,7 @@ isr_rx_next_subevent:
 						&lll->data_chan.prn_s,
 						&lll->data_chan.remap_idx);
 
-			skipped -= (bis_idx_new - bis_idx_old) *
+			skipped -= (bis_idx_new - bis_idx_old - 1) *
 				   ((lll->bn * lll->irc) + lll->ptc);
 		}
 
